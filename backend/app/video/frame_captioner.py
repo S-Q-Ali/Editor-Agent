@@ -7,11 +7,11 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-BLIP2_MODEL = "Salesforce/blip2-opt-2.7b"
+BLIP2_MODEL = "Salesforce/blip-image-captioning-base"
 
 
 class FrameCaptioner:
-    """BLIP-2 based frame captioning for video segments."""
+    """BLIP-based frame captioning for video segments."""
 
     def __init__(self, model_name: str = BLIP2_MODEL, device: Optional[str] = None):
         self.model_name = model_name
@@ -33,23 +33,23 @@ class FrameCaptioner:
         if self._loaded:
             return
         try:
-            from transformers import Blip2Processor, Blip2ForConditionalGeneration
+            from transformers import BlipProcessor, BlipForConditionalGeneration
             import torch
 
-            logger.info("Loading BLIP-2 model: %s on %s", self.model_name, self.device)
-            self._processor = Blip2Processor.from_pretrained(self.model_name)
-            self._model = Blip2ForConditionalGeneration.from_pretrained(
+            logger.info("Loading BLIP model: %s on %s", self.model_name, self.device)
+            self._processor = BlipProcessor.from_pretrained(self.model_name)
+            self._model = BlipForConditionalGeneration.from_pretrained(
                 self.model_name,
                 torch_dtype=torch.float16 if self.device == "cuda" else torch.float32,
                 device_map=self.device if self.device == "cuda" else None,
             )
             self._loaded = True
-            logger.info("BLIP-2 model loaded successfully")
+            logger.info("BLIP model loaded successfully")
         except ImportError:
             logger.warning("transformers/torch not installed. Frame captioning unavailable.")
             raise
         except Exception as e:
-            logger.error("Failed to load BLIP-2 model: %s", e)
+            logger.error("Failed to load BLIP model: %s", e)
             raise
 
     def caption_video(self, video_path: str, interval: float = 2.0) -> List[Dict[str, Any]]:
@@ -98,7 +98,7 @@ class FrameCaptioner:
         return frames
 
     def _caption_frame(self, frame: np.ndarray) -> str:
-        """Generate a text caption for a single frame using BLIP-2."""
+        """Generate a text caption for a single frame using BLIP."""
         self._load_model()
 
         from PIL import Image
@@ -109,8 +109,27 @@ class FrameCaptioner:
         if self.device == "cuda":
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
-        output = self._model.generate(**inputs, max_new_tokens=50)
+        output = self._model.generate(**inputs, max_new_tokens=30, num_beams=3)
         caption = self._processor.decode(output[0], skip_special_tokens=True).strip()
+        caption = self._clean_caption(caption)
+        return caption
+
+    @staticmethod
+    def _clean_caption(caption: str) -> str:
+        """Remove repetitive phrases from generated captions."""
+        words = caption.split()
+        if len(words) < 3:
+            return caption
+        for pattern_len in range(1, len(words) // 2 + 1):
+            for start in range(len(words) - pattern_len * 2 + 1):
+                pattern = words[start:start + pattern_len]
+                repeated = True
+                for j in range(start + pattern_len, start + pattern_len * 2):
+                    if j >= len(words) or words[j] != pattern[(j - start) % pattern_len]:
+                        repeated = False
+                        break
+                if repeated:
+                    return " ".join(words[:start + pattern_len])
         return caption
 
     def _merge_captions(self, raw_captions: List[Dict[str, Any]], similarity_threshold: float = 0.5) -> List[Dict[str, Any]]:

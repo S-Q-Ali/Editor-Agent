@@ -10,13 +10,50 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "sitting"
       ],
-      "objects": [],
+      "objects": [
+        "bed",
+        "boy",
+        "child",
+        "dog",
+        "his",
+        "laying",
+        "next",
+        "room",
+        "secret",
+        "sitting"
+      ],
       "emotion": "neutral",
       "motion_score": 0.139,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "a boy and a dog laying on top of a bed",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 6.0,
+          "caption": "a child laying on a bed next to a dog"
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "caption": "a boy and a dog laying on top of a bed"
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "caption": "the secret in"
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "caption": "a boy and his dog are sitting on a bed"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "a boy and a dog in a room"
+        }
+      ],
       "quality_score": 0.689,
       "brightness": 117.8,
       "sharpness": 170.5,
@@ -25,27 +62,32 @@
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.631
+          "score": 0.631,
+          "caption": "a child laying on a bed next to a dog"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.612
+          "score": 0.612,
+          "caption": "a child laying on a bed next to a dog"
         },
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.573
+          "score": 0.573,
+          "caption": "a boy and a dog laying on top of a bed"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.553
+          "score": 0.553,
+          "caption": "a boy and his dog are sitting on a bed"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.551
+          "score": 0.551,
+          "caption": "the secret in"
         }
       ]
     },
@@ -58,13 +100,33 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "playing"
       ],
-      "objects": [],
+      "objects": [
+        "bedroom",
+        "boy",
+        "dog",
+        "girl",
+        "her",
+        "little",
+        "playing",
+        "room"
+      ],
       "emotion": "neutral",
       "motion_score": 0.14,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "a little boy and girl playing with a dog in a bedroom",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 9.0,
+          "caption": "a little boy and girl playing with a dog in a bedroom"
+        },
+        {
+          "start": 9.0,
+          "end": 18.0,
+          "caption": "a little girl and her dog are playing in the room"
+        }
+      ],
       "quality_score": 0.632,
       "brightness": 127.7,
       "sharpness": 106.4,
@@ -73,27 +135,32 @@
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.619
+          "score": 0.619,
+          "caption": "a little boy and girl playing with a dog in a bedroom"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.607
+          "score": 0.607,
+          "caption": "a little boy and girl playing with a dog in a bedroom"
         },
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.605
+          "score": 0.605,
+          "caption": "a little boy and girl playing with a dog in a bedroom"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.59
+          "score": 0.59,
+          "caption": "a little girl and her dog are playing in the room"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.523
+          "score": 0.523,
+          "caption": "a little girl and her dog are playing in the room"
         }
       ]
     },
@@ -106,13 +173,52 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "playing",
+        "sitting",
+        "standing"
       ],
-      "objects": [],
+      "objects": [
+        "bed",
+        "bedroom",
+        "boy",
+        "children",
+        "dog",
+        "featuring",
+        "girl",
+        "little",
+        "movie",
+        "peanuts"
+      ],
       "emotion": "neutral",
       "motion_score": 0.156,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "a scene from the peanuts movie, featuring two children playing in a bedroom",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "caption": "a little boy sitting on top of a bed"
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "caption": "a scene from the peanuts movie, featuring two children playing in a bedroom"
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "caption": "the secret in"
+        },
+        {
+          "start": 9.0,
+          "end": 15.0,
+          "caption": "a little boy and girl in a room with a dog"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "two children standing on a rug in a room"
+        }
+      ],
       "quality_score": 0.692,
       "brightness": 147.4,
       "sharpness": 185.0,
@@ -121,27 +227,32 @@
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.783
+          "score": 0.783,
+          "caption": "the secret in"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.78
+          "score": 0.78,
+          "caption": "a little boy and girl in a room with a dog"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.754
+          "score": 0.754,
+          "caption": "a little boy and girl in a room with a dog"
         },
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.609
+          "score": 0.609,
+          "caption": "a little boy sitting on top of a bed"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.522
+          "score": 0.522,
+          "caption": "a scene from the peanuts movie, featuring two children playing in a bedroom"
         }
       ]
     },
@@ -154,13 +265,50 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "activity"
       ],
-      "objects": [],
+      "objects": [
+        "bathroom",
+        "boy",
+        "brushing",
+        "characters",
+        "children",
+        "dog",
+        "each",
+        "front",
+        "girl",
+        "group"
+      ],
       "emotion": "neutral",
       "motion_score": 0.136,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "a group of children in a bathroom talking to each other children",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "caption": "a boy and a dog in a bathroom"
+        },
+        {
+          "start": 3.0,
+          "end": 9.0,
+          "caption": "the characters are brushing their teeth in the bathroom"
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "caption": "a group of children in a bathroom talking to each other children"
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "caption": "a girl brushing her teeth in front of a mirror"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "two children brushing their teeth in the bathroom"
+        }
+      ],
       "quality_score": 0.566,
       "brightness": 138.0,
       "sharpness": 128.6,
@@ -169,27 +317,32 @@
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.59
+          "score": 0.59,
+          "caption": "a boy and a dog in a bathroom"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.571
+          "score": 0.571,
+          "caption": "a group of children in a bathroom talking to each other children"
         },
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.569
+          "score": 0.569,
+          "caption": "the characters are brushing their teeth in the bathroom"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.551
+          "score": 0.551,
+          "caption": "a girl brushing her teeth in front of a mirror"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.504
+          "score": 0.504,
+          "caption": "the characters are brushing their teeth in the bathroom"
         }
       ]
     },
@@ -202,13 +355,55 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "looking"
       ],
-      "objects": [],
+      "objects": [
+        "bathroom",
+        "boy",
+        "brushing",
+        "child",
+        "children",
+        "dog",
+        "dogs",
+        "each",
+        "front",
+        "girl"
+      ],
       "emotion": "neutral",
       "motion_score": 0.139,
-      "scene_description": "Video with low motion, bright scene",
+      "scene_description": "a boy and his dog are looking at each other dogs in the bathroom",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "caption": "a child is washing his hands in the sink"
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "caption": "the secret in"
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "caption": "a boy and a girl in a bathroom with a dog"
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "caption": "a boy and his dog are looking at each other dogs in the bathroom"
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "caption": "a boy and a dog in a bathroom"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "two children brushing their teeth in front of a mirror"
+        }
+      ],
       "quality_score": 0.438,
       "brightness": 163.8,
       "sharpness": 48.8,
@@ -217,27 +412,32 @@
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.542
+          "score": 0.542,
+          "caption": "a boy and a girl in a bathroom with a dog"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.512
+          "score": 0.512,
+          "caption": "a boy and his dog are looking at each other dogs in the bathroom"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.495
+          "score": 0.495,
+          "caption": "a boy and a dog in a bathroom"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.474
+          "score": 0.474,
+          "caption": "the secret in"
         },
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.409
+          "score": 0.409,
+          "caption": "a child is washing his hands in the sink"
         }
       ]
     },
@@ -250,13 +450,45 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "activity"
       ],
-      "objects": [],
+      "objects": [
+        "bathroom",
+        "brushing",
+        "children",
+        "girl",
+        "her",
+        "little",
+        "secret",
+        "teeth",
+        "their",
+        "two"
+      ],
       "emotion": "neutral",
       "motion_score": 0.158,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "two children brushing their teeth in the bathroom",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 6.0,
+          "caption": "two children brushing their teeth in the bathroom"
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "caption": "a little girl brushing her teeth in the bathroom"
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "caption": "the secret in the secret"
+        },
+        {
+          "start": 12.0,
+          "end": 18.0,
+          "caption": "two children brushing their teeth in the bathroom"
+        }
+      ],
       "quality_score": 0.753,
       "brightness": 131.7,
       "sharpness": 282.3,
@@ -265,27 +497,32 @@
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.768
+          "score": 0.768,
+          "caption": "two children brushing their teeth in the bathroom"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.676
+          "score": 0.676,
+          "caption": "two children brushing their teeth in the bathroom"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.661
+          "score": 0.661,
+          "caption": "two children brushing their teeth in the bathroom"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.654
+          "score": 0.654,
+          "caption": "the secret in the secret"
         },
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.54
+          "score": 0.54,
+          "caption": "a little girl brushing her teeth in the bathroom"
         }
       ]
     },
@@ -298,13 +535,56 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "looking",
+        "playing"
       ],
-      "objects": [],
+      "objects": [
+        "bathroom",
+        "boy",
+        "brushing",
+        "bubbles",
+        "children",
+        "hair",
+        "his",
+        "looking",
+        "mirror",
+        "one"
+      ],
       "emotion": "neutral",
       "motion_score": 0.17,
-      "scene_description": "Video with low motion, bright scene",
+      "scene_description": "two children in the bathroom, one is brushing his teeth and the other is brushing his teeth",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "caption": "the sims"
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "caption": "two children playing with soap bubbles in a bathroom"
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "caption": "two children in the bathroom, one is brushing his teeth and the other is brushing his teeth"
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "caption": "a young boy brushing his hair in the bathroom"
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "caption": "the secret in"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "two children looking at themselves in the mirror"
+        }
+      ],
       "quality_score": 0.433,
       "brightness": 157.2,
       "sharpness": 43.2,
@@ -313,27 +593,32 @@
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.612
+          "score": 0.612,
+          "caption": "two children in the bathroom, one is brushing his teeth and the other is brushing his teeth"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.481
+          "score": 0.481,
+          "caption": "a young boy brushing his hair in the bathroom"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.454
+          "score": 0.454,
+          "caption": "the secret in"
         },
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.429
+          "score": 0.429,
+          "caption": "the sims"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.407
+          "score": 0.407,
+          "caption": "two children playing with soap bubbles in a bathroom"
         }
       ]
     },
@@ -346,13 +631,52 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "looking",
+        "playing",
+        "sitting"
       ],
-      "objects": [],
+      "objects": [
+        "animated",
+        "boy",
+        "camera",
+        "children",
+        "dog",
+        "floor",
+        "girl",
+        "little",
+        "littlestufs",
+        "looking"
+      ],
       "emotion": "neutral",
       "motion_score": 0.14,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "two children sitting on the floor, one is looking at the camera and the other is looking at the camera",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "caption": "a little boy is tying a pair of shoes"
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "caption": "two children sitting on the floor, one is looking at the camera and the other is looking at the camera"
+        },
+        {
+          "start": 6.0,
+          "end": 12.0,
+          "caption": "a little girl and boy in a room with a rainbow wallpaper"
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "caption": "the littlestufs in the new trailer for the animated movie"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "a little boy and a little girl playing with a dog in a room"
+        }
+      ],
       "quality_score": 0.562,
       "brightness": 107.7,
       "sharpness": 93.1,
@@ -361,27 +685,32 @@
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.522
+          "score": 0.522,
+          "caption": "the littlestufs in the new trailer for the animated movie"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.518
+          "score": 0.518,
+          "caption": "a little girl and boy in a room with a rainbow wallpaper"
         },
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.514
+          "score": 0.514,
+          "caption": "a little boy is tying a pair of shoes"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.5
+          "score": 0.5,
+          "caption": "two children sitting on the floor, one is looking at the camera and the other is looking at the camera"
         },
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.474
+          "score": 0.474,
+          "caption": "a little girl and boy in a room with a rainbow wallpaper"
         }
       ]
     },
@@ -394,13 +723,36 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "looking",
+        "sitting"
       ],
-      "objects": [],
+      "objects": [
+        "boy",
+        "children",
+        "dog",
+        "door",
+        "girl",
+        "looking",
+        "open",
+        "sitting",
+        "table",
+        "two"
+      ],
       "emotion": "neutral",
       "motion_score": 0.161,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "a boy and a girl sitting at a table with a dog",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 15.0,
+          "caption": "a boy and a girl sitting at a table with a dog"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "two children are looking at the open door"
+        }
+      ],
       "quality_score": 0.971,
       "brightness": 124.1,
       "sharpness": 490.4,
@@ -409,27 +761,32 @@
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.975
+          "score": 0.975,
+          "caption": "a boy and a girl sitting at a table with a dog"
         },
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.887
+          "score": 0.887,
+          "caption": "a boy and a girl sitting at a table with a dog"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.879
+          "score": 0.879,
+          "caption": "a boy and a girl sitting at a table with a dog"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.814
+          "score": 0.814,
+          "caption": "a boy and a girl sitting at a table with a dog"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.614
+          "score": 0.614,
+          "caption": "a boy and a girl sitting at a table with a dog"
         }
       ]
     },
@@ -442,13 +799,45 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "standing"
       ],
-      "objects": [],
+      "objects": [
+        "boy",
+        "dog",
+        "family",
+        "girl",
+        "little",
+        "living",
+        "movie",
+        "peanuts",
+        "room",
+        "secret"
+      ],
       "emotion": "neutral",
       "motion_score": 0.168,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "a little girl and a little boy standing in a living room",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 6.0,
+          "caption": "the secret in"
+        },
+        {
+          "start": 6.0,
+          "end": 12.0,
+          "caption": "a little girl and a little boy standing in a living room"
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "caption": "the peanuts movie trailer"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "a family in a living room with their dog"
+        }
+      ],
       "quality_score": 0.703,
       "brightness": 114.2,
       "sharpness": 201.6,
@@ -457,27 +846,32 @@
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.65
+          "score": 0.65,
+          "caption": "the peanuts movie trailer"
         },
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.648
+          "score": 0.648,
+          "caption": "the secret in"
         },
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.631
+          "score": 0.631,
+          "caption": "a little girl and a little boy standing in a living room"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.616
+          "score": 0.616,
+          "caption": "the secret in"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.563
+          "score": 0.563,
+          "caption": "a little girl and a little boy standing in a living room"
         }
       ]
     },
@@ -490,13 +884,50 @@
       "fps": 24.0,
       "codec": "h264",
       "actions": [
-        "still",
-        "static"
+        "standing"
       ],
-      "objects": [],
+      "objects": [
+        "boy",
+        "dog",
+        "door",
+        "flower",
+        "garden",
+        "girl",
+        "grass",
+        "her",
+        "house",
+        "little"
+      ],
       "emotion": "neutral",
       "motion_score": 0.183,
-      "scene_description": "Video with low motion, dark scene",
+      "scene_description": "a little girl and her dog walk through a flower garden",
+      "segment_descriptions": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "caption": "a yellow house with a red door and windows"
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "caption": "a little girl and her dog walk through a flower garden"
+        },
+        {
+          "start": 6.0,
+          "end": 12.0,
+          "caption": "a boy and a girl standing in the grass with their dog"
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "caption": "the secret in"
+        },
+        {
+          "start": 15.0,
+          "end": 18.0,
+          "caption": "the sims"
+        }
+      ],
       "quality_score": 0.954,
       "brightness": 132.9,
       "sharpness": 509.7,
@@ -505,27 +936,32 @@
         {
           "start": 0.0,
           "end": 3.0,
-          "score": 0.981
+          "score": 0.981,
+          "caption": "a yellow house with a red door and windows"
         },
         {
           "start": 9.0,
           "end": 12.0,
-          "score": 0.795
+          "score": 0.795,
+          "caption": "a boy and a girl standing in the grass with their dog"
         },
         {
           "start": 6.0,
           "end": 9.0,
-          "score": 0.766
+          "score": 0.766,
+          "caption": "a boy and a girl standing in the grass with their dog"
         },
         {
           "start": 12.0,
           "end": 15.0,
-          "score": 0.613
+          "score": 0.613,
+          "caption": "the secret in"
         },
         {
           "start": 3.0,
           "end": 6.0,
-          "score": 0.556
+          "score": 0.556,
+          "caption": "a little girl and her dog walk through a flower garden"
         }
       ]
     }
