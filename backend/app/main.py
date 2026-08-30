@@ -9,6 +9,7 @@ from app.api.health import router as health_router
 from app.api.upload import router as upload_router
 from app.api.jobs import router as jobs_router
 from app.api.analysis import router as analysis_router
+from app.api.lyrics import router as lyrics_router
 
 config = load_config()
 
@@ -31,6 +32,7 @@ app.include_router(health_router)
 app.include_router(upload_router)
 app.include_router(jobs_router)
 app.include_router(analysis_router)
+app.include_router(lyrics_router)
 
 
 @app.get("/")
