@@ -1,0 +1,509 @@
+{
+  "lines": [
+    {
+      "text": "Good morning, little sunshine!",
+      "section": "Intro",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 0.0,
+      "end": 2.478
+    },
+    {
+      "text": "Wake up, wake up!",
+      "section": "Intro",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 2.478,
+      "end": 4.956
+    },
+    {
+      "text": "It's a brand-new day!",
+      "section": "Intro",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 4.956,
+      "end": 7.434
+    },
+    {
+      "text": "Good morning, little sunshine,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 7.434,
+      "end": 9.912
+    },
+    {
+      "text": "Open up your eyes!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 9.912,
+      "end": 12.39
+    },
+    {
+      "text": "Stretch your arms up to the sky,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 12.39,
+      "end": 14.869
+    },
+    {
+      "text": "What a big surprise!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 14.869,
+      "end": 17.347
+    },
+    {
+      "text": "Good morning, little sunshine,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 17.347,
+      "end": 19.825
+    },
+    {
+      "text": "Jump out of your bed!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 19.825,
+      "end": 22.303
+    },
+    {
+      "text": "Happy little feet go tap, tap, tap,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 22.303,
+      "end": 24.781
+    },
+    {
+      "text": "Let's get ready instead!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 24.781,
+      "end": 27.259
+    },
+    {
+      "text": "Good morning, good morning,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 27.259,
+      "end": 29.737
+    },
+    {
+      "text": "Hello, hello!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 29.737,
+      "end": 32.215
+    },
+    {
+      "text": "Brush, brush, brush your teeth,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 32.215,
+      "end": 34.693
+    },
+    {
+      "text": "And off we go!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 34.693,
+      "end": 37.171
+    },
+    {
+      "text": "Good morning, good morning,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 37.171,
+      "end": 39.65
+    },
+    {
+      "text": "Smile so bright!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 39.65,
+      "end": 42.128
+    },
+    {
+      "text": "Wash your little face,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 42.128,
+      "end": 44.606
+    },
+    {
+      "text": "And shine all day!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 44.606,
+      "end": 47.084
+    },
+    {
+      "text": "Brush your teeth, brush, brush, brush,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 47.084,
+      "end": 49.562
+    },
+    {
+      "text": "Round and round we go!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 49.562,
+      "end": 52.04
+    },
+    {
+      "text": "Up and down and side to side,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 52.04,
+      "end": 54.518
+    },
+    {
+      "text": "Make them sparkle, glow!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 54.518,
+      "end": 56.996
+    },
+    {
+      "text": "Wash your hands, wash, wash, wash,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 56.996,
+      "end": 59.474
+    },
+    {
+      "text": "Splash a little water!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 59.474,
+      "end": 61.952
+    },
+    {
+      "text": "Wash your face and comb your hair,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 61.952,
+      "end": 64.43
+    },
+    {
+      "text": "Look at you, you're smarter!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 64.43,
+      "end": 66.909
+    },
+    {
+      "text": "Good morning, good morning,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 66.909,
+      "end": 69.387
+    },
+    {
+      "text": "Hello, hello!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 69.387,
+      "end": 71.865
+    },
+    {
+      "text": "Brush, brush, brush your teeth,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 71.865,
+      "end": 74.343
+    },
+    {
+      "text": "And off we go!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 74.343,
+      "end": 76.821
+    },
+    {
+      "text": "Good morning, good morning,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 76.821,
+      "end": 79.299
+    },
+    {
+      "text": "Smile so bright!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 79.299,
+      "end": 81.777
+    },
+    {
+      "text": "Wash your little face,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 81.777,
+      "end": 84.255
+    },
+    {
+      "text": "And shine all day!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 84.255,
+      "end": 86.733
+    },
+    {
+      "text": "Put your little shoes on,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 86.733,
+      "end": 89.211
+    },
+    {
+      "text": "One and two and three!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 89.211,
+      "end": 91.69
+    },
+    {
+      "text": "Pick your favorite shirt today,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 91.69,
+      "end": 94.168
+    },
+    {
+      "text": "Come and dance with me!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 94.168,
+      "end": 96.646
+    },
+    {
+      "text": "Breakfast on the table,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 96.646,
+      "end": 99.124
+    },
+    {
+      "text": "Yummy, yummy yum!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 99.124,
+      "end": 101.602
+    },
+    {
+      "text": "Wave goodbye and clap your hands,",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 101.602,
+      "end": 104.08
+    },
+    {
+      "text": "A fun new day has come!",
+      "section": "Verse",
+      "timestamp": null,
+      "importance": 0.5,
+      "start": 104.08,
+      "end": 106.558
+    },
+    {
+      "text": "Stretch up high!",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 106.558,
+      "end": 109.036
+    },
+    {
+      "text": "Touch your toes!",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 109.036,
+      "end": 111.514
+    },
+    {
+      "text": "Wiggle, wiggle,",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 111.514,
+      "end": 113.992
+    },
+    {
+      "text": "There it goes!",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 113.992,
+      "end": 116.47
+    },
+    {
+      "text": "Big smile!",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 116.47,
+      "end": 118.949
+    },
+    {
+      "text": "Happy heart!",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.7999999999999999,
+      "start": 118.949,
+      "end": 121.427
+    },
+    {
+      "text": "We're ready now,",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 121.427,
+      "end": 123.905
+    },
+    {
+      "text": "Let's make a start!",
+      "section": "Bridge",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 123.905,
+      "end": 126.383
+    },
+    {
+      "text": "Good morning, good morning,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 126.383,
+      "end": 128.861
+    },
+    {
+      "text": "Hello, hello!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 128.861,
+      "end": 131.339
+    },
+    {
+      "text": "Brush, brush, brush your teeth,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 131.339,
+      "end": 133.817
+    },
+    {
+      "text": "And off we go!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 133.817,
+      "end": 136.295
+    },
+    {
+      "text": "Good morning, good morning,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 136.295,
+      "end": 138.773
+    },
+    {
+      "text": "Smile so bright!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 138.773,
+      "end": 141.251
+    },
+    {
+      "text": "Happy little sunshine,",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 141.251,
+      "end": 143.73
+    },
+    {
+      "text": "Shining all day!",
+      "section": "Chorus",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 143.73,
+      "end": 146.208
+    },
+    {
+      "text": "Good morning, little sunshine!",
+      "section": "Outro",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 146.208,
+      "end": 148.686
+    },
+    {
+      "text": "Have a happy day!",
+      "section": "Outro",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 148.686,
+      "end": 151.164
+    },
+    {
+      "text": "Clap, clap, clap your hands,",
+      "section": "Outro",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 151.164,
+      "end": 153.642
+    },
+    {
+      "text": "And sing hooray!",
+      "section": "Outro",
+      "timestamp": null,
+      "importance": 0.6,
+      "start": 153.642,
+      "end": 156.12
+    }
+  ],
+  "total_lines": 63
+}

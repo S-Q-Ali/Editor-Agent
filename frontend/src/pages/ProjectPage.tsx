@@ -4,6 +4,10 @@ import { useAppStore } from '../stores/appStore'
 import { projectApi } from '../services/api'
 import type { Project } from '../types'
 
+function getFileName(path: string) {
+  return path.split(/[/\\]/).pop() || path
+}
+
 function ProjectPage() {
   const navigate = useNavigate()
   const { currentProject, currentProjectPath, setCurrentProject } = useAppStore()
@@ -12,6 +16,14 @@ function ProjectPage() {
   const [processing, setProcessing] = useState(false)
   const [pipelineStep, setPipelineStep] = useState<string | null>(null)
   const [lyrics, setLyrics] = useState('')
+
+  const [musicUploading, setMusicUploading] = useState(false)
+  const [musicProgress, setMusicProgress] = useState(0)
+  const [clipsUploading, setClipsUploading] = useState(false)
+  const [clipsProgress, setClipsProgress] = useState(0)
+  const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
   const musicInputRef = useRef<HTMLInputElement>(null)
   const clipsInputRef = useRef<HTMLInputElement>(null)
 
@@ -24,6 +36,20 @@ function ProjectPage() {
       navigate('/')
     }
   }, [projectPath])
+
+  useEffect(() => {
+    if (uploadSuccess) {
+      const t = setTimeout(() => setUploadSuccess(null), 3000)
+      return () => clearTimeout(t)
+    }
+  }, [uploadSuccess])
+
+  useEffect(() => {
+    if (uploadError) {
+      const t = setTimeout(() => setUploadError(null), 5000)
+      return () => clearTimeout(t)
+    }
+  }, [uploadError])
 
   const loadProject = async () => {
     if (!projectPath) return
@@ -38,42 +64,83 @@ function ProjectPage() {
     }
   }
 
-  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMusicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !projectPath) return
+
+    setMusicUploading(true)
+    setMusicProgress(0)
+    setUploadError(null)
 
     const formData = new FormData()
     formData.append('file', file)
 
-    try {
-      await fetch(`/api/upload/music/${encodeURIComponent(projectPath)}`, {
-        method: 'POST',
-        body: formData,
-      })
-      loadProject()
-    } catch (err) {
-      console.error('Upload failed:', err)
+    const xhr = new XMLHttpRequest()
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        setMusicProgress(Math.round((event.loaded / event.total) * 100))
+      }
     }
+    xhr.onload = () => {
+      setMusicUploading(false)
+      setMusicProgress(0)
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadSuccess(`"${file.name}" uploaded successfully`)
+        loadProject()
+      } else {
+        setUploadError('Music upload failed')
+      }
+    }
+    xhr.onerror = () => {
+      setMusicUploading(false)
+      setMusicProgress(0)
+      setUploadError('Music upload failed — check connection')
+    }
+    xhr.open('POST', `/api/upload/music/${encodeURIComponent(projectPath)}`)
+    xhr.send(formData)
+
+    if (musicInputRef.current) musicInputRef.current.value = ''
   }
 
-  const handleClipsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleClipsUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
-    if (!files || !projectPath) return
+    if (!files || files.length === 0 || !projectPath) return
+
+    const fileCount = files.length
+    setClipsUploading(true)
+    setClipsProgress(0)
+    setUploadError(null)
 
     const formData = new FormData()
     for (let i = 0; i < files.length; i++) {
       formData.append('files', files[i])
     }
 
-    try {
-      await fetch(`/api/upload/clips/${encodeURIComponent(projectPath)}`, {
-        method: 'POST',
-        body: formData,
-      })
-      loadProject()
-    } catch (err) {
-      console.error('Upload failed:', err)
+    const xhr = new XMLHttpRequest()
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        setClipsProgress(Math.round((event.loaded / event.total) * 100))
+      }
     }
+    xhr.onload = () => {
+      setClipsUploading(false)
+      setClipsProgress(0)
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setUploadSuccess(`${fileCount} clip${fileCount > 1 ? 's' : ''} uploaded successfully`)
+        loadProject()
+      } else {
+        setUploadError('Clips upload failed')
+      }
+    }
+    xhr.onerror = () => {
+      setClipsUploading(false)
+      setClipsProgress(0)
+      setUploadError('Clips upload failed — check connection')
+    }
+    xhr.open('POST', `/api/upload/clips/${encodeURIComponent(projectPath)}`)
+    xhr.send(formData)
+
+    if (clipsInputRef.current) clipsInputRef.current.value = ''
   }
 
   const handleLyricsSubmit = async () => {
@@ -137,6 +204,8 @@ function ProjectPage() {
     return <div className="text-center py-12 text-slate-400">Project not found</div>
   }
 
+  const musicFileName = project.music_file ? getFileName(project.music_file) : null
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -157,7 +226,26 @@ function ProjectPage() {
         </div>
       </div>
 
+      {(uploadSuccess || uploadError) && (
+        <div
+          className={`mb-6 rounded-lg px-4 py-3 text-sm font-medium flex items-center justify-between ${
+            uploadSuccess
+              ? 'bg-green-900/40 border border-green-700 text-green-300'
+              : 'bg-red-900/40 border border-red-700 text-red-300'
+          }`}
+        >
+          <span>{uploadSuccess || uploadError}</span>
+          <button
+            onClick={() => { setUploadSuccess(null); setUploadError(null) }}
+            className="ml-4 text-slate-400 hover:text-white"
+          >
+            x
+          </button>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Music Card */}
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <h3 className="font-semibold mb-3">Music</h3>
           <input
@@ -167,8 +255,31 @@ function ProjectPage() {
             onChange={handleMusicUpload}
             className="hidden"
           />
-          {project.music_file ? (
-            <p className="text-green-400 text-sm">Music uploaded</p>
+
+          {musicUploading ? (
+            <div>
+              <p className="text-sm text-slate-300 mb-2 truncate">{musicFileName || 'Uploading...'}</p>
+              <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden mb-1">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                  style={{ width: `${musicProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-400">{musicProgress}%</p>
+            </div>
+          ) : musicFileName ? (
+            <div>
+              <div className="flex items-center gap-2 text-green-400 text-sm mb-3">
+                <span className="text-lg">&#10003;</span>
+                <span className="truncate">{musicFileName}</span>
+              </div>
+              <button
+                onClick={() => musicInputRef.current?.click()}
+                className="w-full rounded-lg border border-dashed border-slate-600 p-3 text-sm text-slate-400 hover:border-slate-400 hover:text-slate-200 transition-colors"
+              >
+                Replace Music
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => musicInputRef.current?.click()}
@@ -179,6 +290,7 @@ function ProjectPage() {
           )}
         </div>
 
+        {/* Lyrics Card */}
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <h3 className="font-semibold mb-3">Lyrics</h3>
           <textarea
@@ -189,6 +301,7 @@ function ProjectPage() {
           />
         </div>
 
+        {/* Clips Card */}
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <h3 className="font-semibold mb-3">AI Video Clips</h3>
           <input
@@ -199,15 +312,42 @@ function ProjectPage() {
             onChange={handleClipsUpload}
             className="hidden"
           />
-          <div className="mb-3">
-            <p className="text-sm text-slate-400">{project.clips.length} clips uploaded</p>
-          </div>
-          <button
-            onClick={() => clipsInputRef.current?.click()}
-            className="w-full rounded-lg border border-dashed border-slate-600 p-4 text-sm text-slate-400 hover:border-slate-400 hover:text-slate-200 transition-colors"
-          >
-            Upload Video Clips
-          </button>
+
+          {clipsUploading ? (
+            <div>
+              <p className="text-sm text-slate-300 mb-2">Uploading clips...</p>
+              <div className="w-full h-2 bg-slate-700 rounded-full overflow-hidden mb-1">
+                <div
+                  className="h-full bg-blue-500 transition-all duration-300 ease-out"
+                  style={{ width: `${clipsProgress}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-400">{clipsProgress}%</p>
+            </div>
+          ) : project.clips.length > 0 ? (
+            <div>
+              <div className="flex items-center gap-2 text-green-400 text-sm mb-2">
+                <span className="text-lg">&#10003;</span>
+                <span>{project.clips.length} clip{project.clips.length > 1 ? 's' : ''} uploaded</span>
+              </div>
+              <button
+                onClick={() => clipsInputRef.current?.click()}
+                className="w-full rounded-lg border border-dashed border-slate-600 p-3 text-sm text-slate-400 hover:border-slate-400 hover:text-slate-200 transition-colors"
+              >
+                Add More Clips
+              </button>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-slate-400 mb-3">No clips yet</p>
+              <button
+                onClick={() => clipsInputRef.current?.click()}
+                className="w-full rounded-lg border border-dashed border-slate-600 p-4 text-sm text-slate-400 hover:border-slate-400 hover:text-slate-200 transition-colors"
+              >
+                Upload Video Clips
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,0 +1,533 @@
+{
+  "total_clips": 11,
+  "clips": [
+    {
+      "clip_id": "ZDola_2026-08-29_15-11-00",
+      "filename": "ZDola_2026-08-29_15-11-00.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.139,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.689,
+      "brightness": 117.8,
+      "sharpness": 170.5,
+      "contrast": 58.9,
+      "best_segments": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.631
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.612
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.573
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.553
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.551
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-29_15-27-53",
+      "filename": "ZDola_2026-08-29_15-27-53.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.14,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.632,
+      "brightness": 127.7,
+      "sharpness": 106.4,
+      "contrast": 52.8,
+      "best_segments": [
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.619
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.607
+        },
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.605
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.59
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.523
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-29_15-30-06",
+      "filename": "ZDola_2026-08-29_15-30-06.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.156,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.692,
+      "brightness": 147.4,
+      "sharpness": 185.0,
+      "contrast": 61.8,
+      "best_segments": [
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.783
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.78
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.754
+        },
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.609
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.522
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-29_15-38-14",
+      "filename": "ZDola_2026-08-29_15-38-14.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.136,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.566,
+      "brightness": 138.0,
+      "sharpness": 128.6,
+      "contrast": 39.8,
+      "best_segments": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.59
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.571
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.569
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.551
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.504
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-29_15-46-16",
+      "filename": "ZDola_2026-08-29_15-46-16.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.139,
+      "scene_description": "Video with low motion, bright scene",
+      "quality_score": 0.438,
+      "brightness": 163.8,
+      "sharpness": 48.8,
+      "contrast": 39.1,
+      "best_segments": [
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.542
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.512
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.495
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.474
+        },
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.409
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-30_10-07-03",
+      "filename": "ZDola_2026-08-30_10-07-03.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.158,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.753,
+      "brightness": 131.7,
+      "sharpness": 282.3,
+      "contrast": 50.3,
+      "best_segments": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.768
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.676
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.661
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.654
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.54
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-30_10-45-42_Milo,_Mia,_Bobo_Hand_Washing_-_Dol...",
+      "filename": "ZDola_2026-08-30_10-45-42_Milo,_Mia,_Bobo_Hand_Washing_-_Dol....mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.17,
+      "scene_description": "Video with low motion, bright scene",
+      "quality_score": 0.433,
+      "brightness": 157.2,
+      "sharpness": 43.2,
+      "contrast": 35.6,
+      "best_segments": [
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.612
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.481
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.454
+        },
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.429
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.407
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-30_10-54-39",
+      "filename": "ZDola_2026-08-30_10-54-39.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.14,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.562,
+      "brightness": 107.7,
+      "sharpness": 93.1,
+      "contrast": 50.2,
+      "best_segments": [
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.522
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.518
+        },
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.514
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.5
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.474
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-30_10-59-56",
+      "filename": "ZDola_2026-08-30_10-59-56.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.161,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.971,
+      "brightness": 124.1,
+      "sharpness": 490.4,
+      "contrast": 61.3,
+      "best_segments": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.975
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.887
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.879
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.814
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.614
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-30_11-09-30",
+      "filename": "ZDola_2026-08-30_11-09-30.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.168,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.703,
+      "brightness": 114.2,
+      "sharpness": 201.6,
+      "contrast": 58.5,
+      "best_segments": [
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.65
+        },
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.648
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.631
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.616
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.563
+        }
+      ]
+    },
+    {
+      "clip_id": "ZDola_2026-08-30_11-25-12",
+      "filename": "ZDola_2026-08-30_11-25-12.mp4",
+      "duration": 15.09,
+      "width": 1280,
+      "height": 720,
+      "fps": 24.0,
+      "codec": "h264",
+      "actions": [
+        "still",
+        "static"
+      ],
+      "objects": [],
+      "emotion": "neutral",
+      "motion_score": 0.183,
+      "scene_description": "Video with low motion, dark scene",
+      "quality_score": 0.954,
+      "brightness": 132.9,
+      "sharpness": 509.7,
+      "contrast": 56.7,
+      "best_segments": [
+        {
+          "start": 0.0,
+          "end": 3.0,
+          "score": 0.981
+        },
+        {
+          "start": 9.0,
+          "end": 12.0,
+          "score": 0.795
+        },
+        {
+          "start": 6.0,
+          "end": 9.0,
+          "score": 0.766
+        },
+        {
+          "start": 12.0,
+          "end": 15.0,
+          "score": 0.613
+        },
+        {
+          "start": 3.0,
+          "end": 6.0,
+          "score": 0.556
+        }
+      ]
+    }
+  ]
+}
