@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { projectApi, healthApi } from '../services/api'
+import { useAppStore } from '../stores/appStore'
 import type { Project } from '../types'
 import ProjectCard from '../components/ProjectCard'
 import CreateProjectModal from '../components/CreateProjectModal'
 
 function Dashboard() {
+  const navigate = useNavigate()
+  const { setCurrentProject } = useAppStore()
   const [projects, setProjects] = useState<Project[]>([])
   const [health, setHealth] = useState<{ ffmpeg: boolean; ffprobe: boolean } | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -31,12 +35,19 @@ function Dashboard() {
 
   const handleCreateProject = async (name: string) => {
     try {
-      await projectApi.create(name)
+      const res = await projectApi.create(name)
+      const project = res.data
+      setCurrentProject(project)
       setShowCreateModal(false)
-      loadData()
+      navigate('/project')
     } catch (err) {
       console.error('Failed to create project:', err)
     }
+  }
+
+  const handleSelectProject = (project: Project) => {
+    setCurrentProject(project)
+    navigate('/project')
   }
 
   if (loading) {
@@ -113,7 +124,11 @@ function Dashboard() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard
+              key={project.id}
+              project={project}
+              onClick={() => handleSelectProject(project)}
+            />
           ))}
         </div>
       )}

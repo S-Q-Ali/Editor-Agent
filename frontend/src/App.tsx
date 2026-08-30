@@ -13,8 +13,8 @@ function App() {
         <main className="container mx-auto px-6 py-8">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/project/:projectPath" element={<ProjectPage />} />
-            <Route path="/project/:projectPath/review" element={<ReviewPage />} />
+            <Route path="/project" element={<ProjectPage />} />
+            <Route path="/project/review" element={<ReviewPage />} />
           </Routes>
         </main>
       </div>

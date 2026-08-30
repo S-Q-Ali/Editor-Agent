@@ -22,6 +22,7 @@ class ProjectManager:
         project_data = {
             "id": project_id,
             "name": name,
+            "path": str(project_dir.resolve()),
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
             "status": "created",
@@ -42,7 +43,9 @@ class ProjectManager:
         project_file = project_dir / "project.json"
         if project_file.exists():
             with open(project_file, "r") as f:
-                return json.load(f)
+                data = json.load(f)
+                data["path"] = str(project_dir.resolve())
+                return data
         return None
 
     def list_projects(self) -> list:
@@ -52,6 +55,7 @@ class ProjectManager:
                 if d.is_dir():
                     project = self.get_project(str(d))
                     if project:
+                        project["path"] = str(d.resolve())
                         projects.append(project)
         return projects
 

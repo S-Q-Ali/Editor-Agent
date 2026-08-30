@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { useAppStore } from '../stores/appStore'
 import type { TimelineEvent, QCResult } from '../types'
 import TimelineViewer from '../components/TimelineViewer'
 import VideoPlayer from '../components/VideoPlayer'
@@ -9,7 +10,9 @@ import QCDisplay from '../components/QCDisplay'
 import ApprovalGate from '../components/ApprovalGate'
 
 function ReviewPage() {
-  const { projectPath } = useParams<{ projectPath: string }>()
+  const navigate = useNavigate()
+  const { currentProjectPath } = useAppStore()
+  const projectPath = currentProjectPath
   const [events, setEvents] = useState<TimelineEvent[]>([])
   const [duration, setDuration] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
@@ -21,15 +24,18 @@ function ReviewPage() {
   const [rendering, setRendering] = useState(false)
 
   useEffect(() => {
-    if (projectPath) {
-      loadTimeline()
-      checkForPreview()
+    if (!projectPath) {
+      navigate('/')
+      return
     }
+    loadTimeline()
+    checkForPreview()
   }, [projectPath])
 
   const loadTimeline = async () => {
+    if (!projectPath) return
     try {
-      const response = await fetch(`/api/timeline/${projectPath}`)
+      const response = await fetch(`/api/timeline/${encodeURIComponent(projectPath)}`)
       if (response.ok) {
         const data = await response.json()
         setEvents(data.tracks?.video || [])
@@ -43,15 +49,16 @@ function ReviewPage() {
   }
 
   const checkForPreview = async () => {
+    if (!projectPath) return
     try {
-      const response = await fetch(`/api/render/${projectPath}/status`)
+      const response = await fetch(`/api/render/${encodeURIComponent(projectPath)}/status`)
       if (response.ok) {
         const data = await response.json()
         const preview = data.renders?.find((r: { filename: string }) =>
           r.filename === 'preview.mp4'
         )
         if (preview) {
-          setVideoSrc(`/api/files/${projectPath}/renders/preview.mp4`)
+          setVideoSrc(`/api/files/${encodeURIComponent(projectPath)}/renders/preview.mp4`)
         }
       }
     } catch (err) {
@@ -60,9 +67,10 @@ function ReviewPage() {
   }
 
   const runQC = async () => {
+    if (!projectPath) return
     setQcLoading(true)
     try {
-      const response = await fetch(`/api/qc/${projectPath}`, { method: 'POST' })
+      const response = await fetch(`/api/qc/${encodeURIComponent(projectPath)}`, { method: 'POST' })
       if (response.ok) {
         const data = await response.json()
         setQcResult(data)
@@ -75,8 +83,9 @@ function ReviewPage() {
   }
 
   const handleRevision = async (instruction: string) => {
+    if (!projectPath) return
     try {
-      const response = await fetch(`/api/timeline/${projectPath}/revise`, {
+      const response = await fetch(`/api/revision/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ instruction }),
@@ -91,9 +100,10 @@ function ReviewPage() {
   }
 
   const handleApprove = async () => {
+    if (!projectPath) return
     setRendering(true)
     try {
-      const response = await fetch(`/api/render/${projectPath}`, {
+      const response = await fetch(`/api/render/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ preview: false }),
@@ -121,13 +131,21 @@ function ReviewPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Review & Approve</h2>
-        <button
-          onClick={runQC}
-          disabled={qcLoading}
-          className="rounded-lg bg-slate-700 px-4 py-2 font-medium hover:bg-slate-600 transition-colors disabled:opacity-50"
-        >
-          {qcLoading ? 'Running QC...' : 'Run QC'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={runQC}
+            disabled={qcLoading}
+            className="rounded-lg bg-slate-700 px-4 py-2 font-medium hover:bg-slate-600 transition-colors disabled:opacity-50"
+          >
+            {qcLoading ? 'Running QC...' : 'Run QC'}
+          </button>
+          <button
+            onClick={() => navigate('/project')}
+            className="rounded-lg bg-slate-700 px-4 py-2 font-medium hover:bg-slate-600 transition-colors"
+          >
+            Back to Project
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

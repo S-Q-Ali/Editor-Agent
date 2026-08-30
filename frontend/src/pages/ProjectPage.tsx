@@ -1,29 +1,36 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
+import { useAppStore } from '../stores/appStore'
 import { projectApi } from '../services/api'
 import type { Project } from '../types'
 
 function ProjectPage() {
-  const { projectPath } = useParams<{ projectPath: string }>()
   const navigate = useNavigate()
-  const [project, setProject] = useState<Project | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { currentProject, currentProjectPath, setCurrentProject } = useAppStore()
+  const [project, setProject] = useState<Project | null>(currentProject)
+  const [loading, setLoading] = useState(!currentProject)
   const [processing, setProcessing] = useState(false)
   const [pipelineStep, setPipelineStep] = useState<string | null>(null)
   const [lyrics, setLyrics] = useState('')
   const musicInputRef = useRef<HTMLInputElement>(null)
   const clipsInputRef = useRef<HTMLInputElement>(null)
 
+  const projectPath = currentProjectPath
+
   useEffect(() => {
-    if (projectPath) {
-      loadProject(projectPath)
+    if (projectPath && !project) {
+      loadProject()
+    } else if (!projectPath) {
+      navigate('/')
     }
   }, [projectPath])
 
-  const loadProject = async (path: string) => {
+  const loadProject = async () => {
+    if (!projectPath) return
     try {
-      const res = await projectApi.get(path)
+      const res = await projectApi.get(projectPath)
       setProject(res.data)
+      setCurrentProject(res.data)
     } catch (err) {
       console.error('Failed to load project:', err)
     } finally {
@@ -39,11 +46,11 @@ function ProjectPage() {
     formData.append('file', file)
 
     try {
-      await fetch(`/api/upload/music/${projectPath}`, {
+      await fetch(`/api/upload/music/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         body: formData,
       })
-      loadProject(projectPath)
+      loadProject()
     } catch (err) {
       console.error('Upload failed:', err)
     }
@@ -59,11 +66,11 @@ function ProjectPage() {
     }
 
     try {
-      await fetch(`/api/upload/clips/${projectPath}`, {
+      await fetch(`/api/upload/clips/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         body: formData,
       })
-      loadProject(projectPath)
+      loadProject()
     } catch (err) {
       console.error('Upload failed:', err)
     }
@@ -73,7 +80,7 @@ function ProjectPage() {
     if (!lyrics.trim() || !projectPath) return
 
     try {
-      await fetch(`/api/analysis/lyrics/${projectPath}`, {
+      await fetch(`/api/analysis/lyrics/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: lyrics, use_whisper: false }),
@@ -89,7 +96,7 @@ function ProjectPage() {
 
     try {
       setPipelineStep('Analyzing music...')
-      await fetch(`/api/analysis/music/${projectPath}`, { method: 'POST' })
+      await fetch(`/api/analysis/music/${encodeURIComponent(projectPath)}`, { method: 'POST' })
 
       setPipelineStep('Aligning lyrics...')
       if (lyrics.trim()) {
@@ -97,23 +104,23 @@ function ProjectPage() {
       }
 
       setPipelineStep('Analyzing clips...')
-      await fetch(`/api/analysis/clips/${projectPath}`, { method: 'POST' })
+      await fetch(`/api/analysis/clips/${encodeURIComponent(projectPath)}`, { method: 'POST' })
 
       setPipelineStep('Building search index...')
-      await fetch(`/api/search/${projectPath}/index`, { method: 'POST' })
+      await fetch(`/api/search/${encodeURIComponent(projectPath)}/index`, { method: 'POST' })
 
       setPipelineStep('Generating timeline...')
-      await fetch(`/api/timeline/${projectPath}/generate`, { method: 'POST' })
+      await fetch(`/api/timeline/${encodeURIComponent(projectPath)}/generate`, { method: 'POST' })
 
       setPipelineStep('Rendering preview...')
-      await fetch(`/api/render/${projectPath}`, {
+      await fetch(`/api/render/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ preview: true }),
       })
 
       setPipelineStep('Done!')
-      navigate(`/project/${projectPath}/review`)
+      navigate('/project/review')
     } catch (err) {
       console.error('Pipeline failed:', err)
       setPipelineStep('Pipeline failed')
@@ -134,12 +141,20 @@ function ProjectPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">{project.name}</h2>
-        <button
-          onClick={() => navigate(`/project/${projectPath}/review`)}
-          className="rounded-lg bg-slate-700 px-4 py-2 font-medium hover:bg-slate-600 transition-colors"
-        >
-          Review
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => navigate('/')}
+            className="rounded-lg bg-slate-700 px-4 py-2 font-medium hover:bg-slate-600 transition-colors"
+          >
+            Back
+          </button>
+          <button
+            onClick={() => navigate('/project/review')}
+            className="rounded-lg bg-slate-700 px-4 py-2 font-medium hover:bg-slate-600 transition-colors"
+          >
+            Review
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
