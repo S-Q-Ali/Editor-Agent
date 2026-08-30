@@ -1,0 +1,28 @@
+video:
+  default_width: 1920
+  default_height: 1080
+  fps: 30
+  aspect_ratio: "16:9"
+
+editing:
+  default_style: adaptive
+  beat_sync: true
+  lyric_sync: true
+  repetition_penalty: true
+
+render:
+  codec: h264
+  audio_codec: aac
+  preset: medium
+  crf: 23
+
+ai:
+  model_agnostic: true
+  hardware_detection: true
+  cpu_fallback: true
+
+quality_control:
+  max_black_frame_duration: 0.5
+  min_audio_level: -60
+  max_repetition_score: 0.8
+  min_confidence_threshold: 0.5

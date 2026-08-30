@@ -1,0 +1,57 @@
+import os
+import yaml
+from pathlib import Path
+from typing import Any, Dict
+
+
+CONFIG_DIR = Path(__file__).parent.parent.parent / "config"
+CONFIG_FILE = CONFIG_DIR / "settings.yaml"
+
+
+def load_config() -> Dict[str, Any]:
+    if CONFIG_FILE.exists():
+        with open(CONFIG_FILE, "r") as f:
+            return yaml.safe_load(f)
+    return get_default_config()
+
+
+def get_default_config() -> Dict[str, Any]:
+    return {
+        "video": {
+            "default_width": int(os.getenv("DEFAULT_WIDTH", "1920")),
+            "default_height": int(os.getenv("DEFAULT_HEIGHT", "1080")),
+            "fps": int(os.getenv("DEFAULT_FPS", "30")),
+            "aspect_ratio": "16:9",
+        },
+        "editing": {
+            "default_style": "adaptive",
+            "beat_sync": True,
+            "lyric_sync": True,
+            "repetition_penalty": True,
+        },
+        "render": {
+            "codec": os.getenv("VIDEO_CODEC", "h264"),
+            "audio_codec": os.getenv("AUDIO_CODEC", "aac"),
+            "preset": "medium",
+            "crf": 23,
+        },
+        "ai": {
+            "model_agnostic": True,
+            "hardware_detection": True,
+            "cpu_fallback": True,
+        },
+        "quality_control": {
+            "max_black_frame_duration": 0.5,
+            "min_audio_level": -60,
+            "max_repetition_score": 0.8,
+            "min_confidence_threshold": 0.5,
+        },
+    }
+
+
+def get_project_dir() -> Path:
+    return Path(os.getenv("PROJECTS_DIR", "./projects")).resolve()
+
+
+def get_models_dir() -> Path:
+    return Path(os.getenv("MODELS_DIR", "./models")).resolve()

@@ -1,0 +1,81 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Frontend build
+frontend/dist/
+frontend/build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Models (large files)
+models/*.bin
+models/*.gguf
+models/*.onnx
+models/*.pt
+models/*.pth
+models/*.safetensors
+
+# Project data (user content)
+projects/*/music/*
+projects/*/lyrics/*
+projects/*/clips/*
+projects/*/analysis/*
+projects/*/timeline/*
+projects/*/previews/*
+projects/*/renders/*
+projects/*/logs/*
+!projects/**/.gitkeep
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+*.bak
+
+# Testing
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
