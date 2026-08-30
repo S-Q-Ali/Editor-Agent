@@ -1,0 +1,70 @@
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from pathlib import Path
+import json
+from app.rendering.ffmpeg_renderer import FFmpegRenderer
+
+router = APIRouter(prefix="/api/render", tags=["rendering"])
+renderer = FFmpegRenderer()
+
+
+class RenderRequest(BaseModel):
+    preview: bool = True
+
+
+@router.post("/{project_path:path}")
+async def render_video(project_path: str, data: RenderRequest):
+    project_dir = Path(project_path)
+    timeline_file = project_dir / "timeline" / "timeline.json"
+    music_dir = project_dir / "music"
+    clips_dir = project_dir / "clips"
+    renders_dir = project_dir / "renders"
+
+    if not timeline_file.exists():
+        raise HTTPException(status_code=404, detail="Timeline not found")
+
+    with open(timeline_file, "r") as f:
+        timeline = json.load(f)
+
+    audio_files = list(music_dir.glob("*.mp3")) + list(music_dir.glob("*.wav")) + \
+                  list(music_dir.glob("*.flac")) + list(music_dir.glob("*.ogg"))
+
+    if not audio_files:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    renders_dir.mkdir(exist_ok=True)
+
+    if data.preview:
+        output_file = renders_dir / "preview.mp4"
+    else:
+        output_file = renders_dir / "final.mp4"
+
+    result = renderer.render(
+        timeline=timeline,
+        clips_dir=str(clips_dir),
+        audio_path=str(audio_files[0]),
+        output_path=str(output_file),
+        preview=data.preview,
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    return result
+
+
+@router.get("/{project_path:path}/status")
+async def get_render_status(project_path: str):
+    renders_dir = Path(project_path) / "renders"
+    if not renders_dir.exists():
+        return {"renders": []}
+
+    renders = []
+    for f in renders_dir.glob("*.mp4"):
+        renders.append({
+            "filename": f.name,
+            "path": str(f),
+            "size": f.stat().st_size,
+        })
+
+    return {"renders": renders}
