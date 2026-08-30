@@ -12,6 +12,7 @@ from app.api.analysis import router as analysis_router
 from app.api.lyrics import router as lyrics_router
 from app.api.clips import router as clips_router
 from app.api.search import router as search_router
+from app.api.timeline import router as timeline_router
 
 config = load_config()
 
@@ -37,6 +38,7 @@ app.include_router(analysis_router)
 app.include_router(lyrics_router)
 app.include_router(clips_router)
 app.include_router(search_router)
+app.include_router(timeline_router)
 
 
 @app.get("/")
