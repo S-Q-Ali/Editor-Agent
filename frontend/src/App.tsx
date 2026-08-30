@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
+import ProjectPage from './pages/ProjectPage'
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <main className="container mx-auto px-6 py-8">
           <Routes>
             <Route path="/" element={<Dashboard />} />
+            <Route path="/project/:projectPath" element={<ProjectPage />} />
           </Routes>
         </main>
       </div>

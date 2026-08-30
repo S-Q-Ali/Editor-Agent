@@ -2,9 +2,12 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 import os
-from pathlib import Path
 
 from app.utils.config import load_config
+from app.api.projects import router as projects_router
+from app.api.health import router as health_router
+from app.api.upload import router as upload_router
+from app.api.jobs import router as jobs_router
 
 config = load_config()
 
@@ -22,15 +25,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(projects_router)
+app.include_router(health_router)
+app.include_router(upload_router)
+app.include_router(jobs_router)
+
 
 @app.get("/")
 async def root():
     return {"message": "Local AI Video Editor API", "version": "0.1.0"}
-
-
-@app.get("/health")
-async def health():
-    return {"status": "healthy"}
 
 
 @app.get("/api/config")
