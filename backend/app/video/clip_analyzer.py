@@ -1,4 +1,5 @@
 import json
+import logging
 import subprocess
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -6,12 +7,21 @@ from typing import Any, Dict, List, Optional
 import cv2
 import numpy as np
 
+from app.video.frame_captioner import get_captioner
+
+logger = logging.getLogger(__name__)
+
 
 class ClipAnalyzer:
     def __init__(self):
         self.supported_formats = ['.mp4', '.avi', '.mov', '.mkv', '.webm']
 
-    def analyze_clip(self, video_path: str) -> Dict[str, Any]:
+    def analyze_clip(
+        self,
+        video_path: str,
+        caption_segments: bool = True,
+        segment_interval: float = 2.0,
+    ) -> Dict[str, Any]:
         path = Path(video_path)
         if not path.exists():
             raise FileNotFoundError(f"Video file not found: {video_path}")
@@ -24,6 +34,23 @@ class ClipAnalyzer:
         quality_metrics = self._assess_quality(video_path)
         best_segments = self._find_best_segments(video_path)
 
+        segment_descriptions = []
+        scene_description = visual_features.get("description", "")
+        actions = visual_features.get("actions", [])
+        objects = visual_features.get("objects", [])
+
+        if caption_segments:
+            try:
+                captioner = get_captioner()
+                segment_descriptions = captioner.caption_video(video_path, interval=segment_interval)
+                if segment_descriptions:
+                    scene_description = self._pick_representative_caption(segment_descriptions)
+                    actions = self._extract_actions_from_captions(segment_descriptions)
+                    objects = self._extract_objects_from_captions(segment_descriptions)
+                    best_segments = self._enrich_segments_with_captions(best_segments, segment_descriptions)
+            except Exception as e:
+                logger.warning("BLIP-2 captioning failed for %s: %s", video_path, e)
+
         return {
             "clip_id": path.stem,
             "filename": path.name,
@@ -32,11 +59,12 @@ class ClipAnalyzer:
             "height": video_info.get("height", 0),
             "fps": video_info.get("fps", 0),
             "codec": video_info.get("codec", "unknown"),
-            "actions": visual_features.get("actions", []),
-            "objects": visual_features.get("objects", []),
+            "actions": actions,
+            "objects": objects,
             "emotion": visual_features.get("emotion", "neutral"),
             "motion_score": visual_features.get("motion_score", 0),
-            "scene_description": visual_features.get("description", ""),
+            "scene_description": scene_description,
+            "segment_descriptions": segment_descriptions,
             "quality_score": quality_metrics.get("quality_score", 0),
             "brightness": quality_metrics.get("brightness", 0),
             "sharpness": quality_metrics.get("sharpness", 0),
@@ -44,7 +72,12 @@ class ClipAnalyzer:
             "best_segments": best_segments,
         }
 
-    def analyze_all_clips(self, clips_dir: str) -> List[Dict]:
+    def analyze_all_clips(
+        self,
+        clips_dir: str,
+        caption_segments: bool = True,
+        segment_interval: float = 2.0,
+    ) -> List[Dict]:
         clips_path = Path(clips_dir)
         if not clips_path.exists():
             raise FileNotFoundError(f"Clips directory not found: {clips_dir}")
@@ -53,7 +86,11 @@ class ClipAnalyzer:
         for ext in self.supported_formats:
             for video_file in clips_path.glob(f"*{ext}"):
                 try:
-                    analysis = self.analyze_clip(str(video_file))
+                    analysis = self.analyze_clip(
+                        str(video_file),
+                        caption_segments=caption_segments,
+                        segment_interval=segment_interval,
+                    )
                     clips.append(analysis)
                 except Exception as e:
                     print(f"Failed to analyze {video_file}: {e}")
@@ -261,6 +298,71 @@ class ClipAnalyzer:
             return ["moderate movement"]
         else:
             return ["still", "static"]
+
+    @staticmethod
+    def _pick_representative_caption(segments: List[Dict]) -> str:
+        """Pick the longest, most descriptive caption as the representative."""
+        if not segments:
+            return ""
+        return max((s.get("caption", "") for s in segments), key=len)
+
+    @staticmethod
+    def _extract_actions_from_captions(segments: List[Dict]) -> List[str]:
+        """Extract action verbs from segment captions."""
+        action_words = {
+            "running", "jumping", "dancing", "walking", "sitting", "standing",
+            "playing", "singing", "eating", "drinking", "sleeping", "waking",
+            "opening", "closing", "stretching", "reaching", "throwing", "catching",
+            "hugging", "kissing", "laughing", "crying", "smiling", "waving",
+            "climbing", "falling", "spinning", "turning", "bending", "lifting",
+            "holding", "touching", "looking", "pointing", "kicking", "pushing",
+        }
+        found = set()
+        for seg in segments:
+            caption = seg.get("caption", "").lower()
+            for word in caption.split():
+                word = word.strip(".,!?;:")
+                if word in action_words:
+                    found.add(word)
+        return sorted(found) if found else ["activity"]
+
+    @staticmethod
+    def _extract_objects_from_captions(segments: List[Dict]) -> List[str]:
+        """Extract likely nouns/objects from segment captions."""
+        skip_words = {
+            "a", "an", "the", "is", "are", "was", "were", "in", "on", "at",
+            "to", "for", "of", "with", "by", "from", "and", "or", "but",
+            "not", "no", "yes", "very", "small", "big", "good", "bad",
+            "video", "scene", "shot", "frame", "image", "picture",
+        }
+        found = set()
+        for seg in segments:
+            caption = seg.get("caption", "")
+            for word in caption.split():
+                word = word.strip(".,!?;:").lower()
+                if len(word) > 2 and word not in skip_words:
+                    found.add(word)
+        return sorted(found)[:10]
+
+    @staticmethod
+    def _enrich_segments_with_captions(
+        best_segments: List[Dict],
+        segment_descriptions: List[Dict],
+    ) -> List[Dict]:
+        """Add BLIP-2 captions to the best_segments list."""
+        enriched = []
+        for seg in best_segments:
+            seg_start = seg.get("start", 0)
+            seg_end = seg.get("end", 0)
+            caption = ""
+            for desc in segment_descriptions:
+                d_start = desc.get("start", 0)
+                d_end = desc.get("end", 0)
+                if d_start <= seg_start < d_end or d_start < seg_end <= d_end:
+                    caption = desc.get("caption", "")
+                    break
+            enriched.append({**seg, "caption": caption})
+        return enriched
 
     def _default_visual_features(self) -> Dict[str, Any]:
         return {

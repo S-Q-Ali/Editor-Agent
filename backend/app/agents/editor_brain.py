@@ -29,6 +29,7 @@ class EditingBrain:
         lyrics_alignment: Dict,
         clips: List[Dict],
         lyrics_matches: Dict,
+        segment_matches: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         duration = music_analysis.get("duration", 0)
         beats = music_analysis.get("beats", [])
@@ -53,9 +54,16 @@ class EditingBrain:
             if line_duration <= 0:
                 line_duration = 2.0
 
-            clip_result = self._select_clip(
-                line, clips, lyrics_matches, used_clips, line_duration
-            )
+            clip_result = None
+            if segment_matches:
+                clip_result = self._select_clip_with_segment(
+                    line, clips, segment_matches, used_clips, line_duration
+                )
+
+            if not clip_result:
+                clip_result = self._select_clip(
+                    line, clips, lyrics_matches, used_clips, line_duration
+                )
 
             if not clip_result and clips:
                 fallback_clip = clips[0]
@@ -66,6 +74,8 @@ class EditingBrain:
 
             if clip_result:
                 clip, source_start, source_end, confidence, reason = clip_result
+
+                source_start = self._snap_to_beats(source_start, beats)
 
                 event = TimelineEvent(
                     clip_id=clip.get("clip_id", "unknown"),
@@ -173,6 +183,54 @@ class EditingBrain:
         confidence = base_score * 0.6 * repetition_penalty
         reason = f"Fallback selection (quality: {base_score:.2f}, used: {times_used}x)"
         return (clip, 0, actual_duration, confidence, reason)
+
+    def _select_clip_with_segment(
+        self,
+        lyric_line: Dict,
+        clips: List[Dict],
+        segment_matches: Dict,
+        used_clips: Dict,
+        required_duration: float,
+    ) -> Optional[tuple]:
+        """Try to find a specific segment in a clip that matches the lyric."""
+        lyric_text = lyric_line.get("text", "")
+        matches = segment_matches.get(lyric_text, [])
+
+        for match in matches:
+            score = match.get("score", 0)
+            if score < 0.2:
+                continue
+
+            clip_id = match.get("clip_id", "")
+            clip = next((c for c in clips if c.get("clip_id") == clip_id), None)
+            if not clip:
+                continue
+
+            seg_start = match.get("segment_start", 0)
+            seg_end = match.get("segment_end", 0)
+            seg_duration = seg_end - seg_start
+            if seg_duration < required_duration * 0.3:
+                continue
+
+            times_used = used_clips.get(clip_id, 0)
+            repetition_penalty = max(0.1, 1.0 - times_used * 0.15)
+
+            actual_end = min(seg_start + required_duration, clip.get("duration", seg_end))
+            confidence = score * repetition_penalty
+            caption = match.get("caption", "")
+            reason = f"Segment match: \"{caption}\" (score: {score:.2f}, used: {times_used}x)"
+            return (clip, seg_start, actual_end, confidence, reason)
+
+        return None
+
+    def _snap_to_beats(self, time: float, beats: List[float], tolerance: float = 0.3) -> float:
+        """Snap a timestamp to the nearest beat if within tolerance."""
+        if not beats:
+            return time
+        nearest = min(beats, key=lambda b: abs(b - time))
+        if abs(nearest - time) <= tolerance:
+            return round(nearest, 3)
+        return time
 
     def _select_transition(self, current_time: float, sections: List[Dict]) -> str:
         for section in sections:

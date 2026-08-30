@@ -16,6 +16,11 @@ pyav==13.1.0
 sentence-transformers==3.1.0
 chromadb==0.5.5
 
+# Vision-Language Model (BLIP-2)
+transformers>=4.35.0
+torch>=2.0.0
+Pillow>=10.0.0
+
 # Transcription
 faster-whisper==1.1.0
 

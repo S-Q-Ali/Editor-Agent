@@ -43,6 +43,24 @@ class SemanticSearch:
             })
         return enhanced_clips
 
+    def generate_segment_embeddings(self, clips: List[Dict]) -> List[Dict]:
+        """Generate embeddings for each segment description within clips."""
+        enhanced_clips = []
+        for clip in clips:
+            segment_embeddings = []
+            for seg in clip.get("segment_descriptions", []):
+                caption = seg.get("caption", "")
+                if caption:
+                    emb = self.generate_embedding(caption)
+                    segment_embeddings.append({**seg, "embedding": emb})
+                else:
+                    segment_embeddings.append(seg)
+            enhanced_clips.append({
+                **clip,
+                "segment_embeddings": segment_embeddings,
+            })
+        return enhanced_clips
+
     def search_clips(self, query: str, clips: List[Dict], top_k: int = 5) -> List[SearchResult]:
         query_embedding = self.generate_embedding(query)
 
@@ -77,6 +95,42 @@ class SemanticSearch:
                 results[query] = self.search_clips(query, clips, top_k_per_line)
         return results
 
+    def search_segments(self, query: str, clips: List[Dict], top_k: int = 3) -> List[Dict]:
+        """Find the best matching segment across all clips for a query."""
+        query_embedding = self.generate_embedding(query)
+        results = []
+        for clip in clips:
+            for seg in clip.get("segment_embeddings", clip.get("segment_descriptions", [])):
+                caption = seg.get("caption", "")
+                if not caption:
+                    continue
+                seg_embedding = seg.get("embedding")
+                if seg_embedding:
+                    emb_score = self._cosine_similarity(query_embedding, seg_embedding)
+                else:
+                    emb_score = 0.0
+                text_score = self._text_similarity(query, caption)
+                score = max(emb_score, text_score)
+                if score > 0.05:
+                    results.append({
+                        "clip_id": clip.get("clip_id", "unknown"),
+                        "segment_start": seg.get("start", 0),
+                        "segment_end": seg.get("end", 0),
+                        "caption": caption,
+                        "score": round(score, 3),
+                    })
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:top_k]
+
+    def search_segments_for_lyrics(self, lyrics: List[Dict], clips: List[Dict], top_k_per_line: int = 3) -> Dict[str, List[Dict]]:
+        """Match each lyric line to the best segment across all clips."""
+        results = {}
+        for line in lyrics:
+            query = line.get("text", "")
+            if query:
+                results[query] = self.search_segments(query, clips, top_k_per_line)
+        return results
+
     def save_embeddings(self, clips: List[Dict], output_path: str):
         output = {
             "total_clips": len(clips),
@@ -94,6 +148,10 @@ class SemanticSearch:
         parts = []
         if clip.get("scene_description"):
             parts.append(clip["scene_description"])
+        for seg in clip.get("segment_descriptions", []):
+            caption = seg.get("caption", "")
+            if caption:
+                parts.append(caption)
         if clip.get("actions"):
             parts.append(" ".join(clip["actions"]))
         if clip.get("objects"):

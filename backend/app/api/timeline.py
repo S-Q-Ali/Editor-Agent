@@ -35,18 +35,24 @@ async def generate_timeline(project_path: str):
     clips = clips_data.get("clips", [])
 
     lyrics_matches = {}
+    segment_matches = {}
     if search_file.exists():
         with open(search_file, "r") as f:
             embeddings_data = json.load(f)
         from app.embeddings.semantic_search import SemanticSearch
         search_engine = SemanticSearch()
+        enriched_clips = embeddings_data.get("clips", [])
         lyrics_matches = search_engine.search_for_lyrics(
             lyrics_alignment.get("lines", []),
-            embeddings_data.get("clips", [])
+            enriched_clips
+        )
+        segment_matches = search_engine.search_segments_for_lyrics(
+            lyrics_alignment.get("lines", []),
+            enriched_clips
         )
 
     timeline = brain.generate_timeline(
-        music_analysis, lyrics_alignment, clips, lyrics_matches
+        music_analysis, lyrics_alignment, clips, lyrics_matches, segment_matches
     )
 
     validation = brain.validate_timeline(timeline)
