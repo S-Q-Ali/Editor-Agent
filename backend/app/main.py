@@ -8,6 +8,7 @@ from app.api.projects import router as projects_router
 from app.api.health import router as health_router
 from app.api.upload import router as upload_router
 from app.api.jobs import router as jobs_router
+from app.api.analysis import router as analysis_router
 
 config = load_config()
 
@@ -29,6 +30,7 @@ app.include_router(projects_router)
 app.include_router(health_router)
 app.include_router(upload_router)
 app.include_router(jobs_router)
+app.include_router(analysis_router)
 
 
 @app.get("/")
