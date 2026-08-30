@@ -11,6 +11,7 @@ analyzer = ClipAnalyzer()
 class ClipAnalysisRequest(BaseModel):
     caption_segments: bool = True
     segment_interval: float = 2.0
+    clip_embeddings: bool = True
 
 
 @router.post("/{project_path:path}")
@@ -29,6 +30,7 @@ async def analyze_clips(project_path: str, data: ClipAnalysisRequest = ClipAnaly
             str(clips_dir),
             caption_segments=data.caption_segments,
             segment_interval=data.segment_interval,
+            clip_embeddings=data.clip_embeddings,
         )
         analyzer.save_clip_index(clips, str(analysis_dir / "clip_index.json"))
 

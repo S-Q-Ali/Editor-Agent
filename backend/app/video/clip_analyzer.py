@@ -21,6 +21,7 @@ class ClipAnalyzer:
         video_path: str,
         caption_segments: bool = True,
         segment_interval: float = 2.0,
+        clip_embeddings: bool = True,
     ) -> Dict[str, Any]:
         path = Path(video_path)
         if not path.exists():
@@ -49,7 +50,24 @@ class ClipAnalyzer:
                     objects = self._extract_objects_from_captions(segment_descriptions)
                     best_segments = self._enrich_segments_with_captions(best_segments, segment_descriptions)
             except Exception as e:
-                logger.warning("BLIP-2 captioning failed for %s: %s", video_path, e)
+                logger.warning("BLIP captioning failed for %s: %s", video_path, e)
+
+        if clip_embeddings and segment_descriptions:
+            try:
+                from app.video.clip_matcher import get_clip_matcher
+                matcher = get_clip_matcher()
+                cap = cv2.VideoCapture(video_path)
+                fps = cap.get(cv2.CAP_PROP_FPS) or 30
+                for seg in segment_descriptions:
+                    mid = (seg.get("start", 0) + seg.get("end", 0)) / 2
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, int(mid * fps))
+                    ret, frame = cap.read()
+                    if ret:
+                        emb = matcher.encode_image(frame)
+                        seg["clip_embedding"] = emb.tolist() if emb is not None else None
+                cap.release()
+            except Exception as e:
+                logger.warning("CLIP embedding failed for %s: %s", video_path, e)
 
         return {
             "clip_id": path.stem,
@@ -77,6 +95,7 @@ class ClipAnalyzer:
         clips_dir: str,
         caption_segments: bool = True,
         segment_interval: float = 2.0,
+        clip_embeddings: bool = True,
     ) -> List[Dict]:
         clips_path = Path(clips_dir)
         if not clips_path.exists():
@@ -90,6 +109,7 @@ class ClipAnalyzer:
                         str(video_file),
                         caption_segments=caption_segments,
                         segment_interval=segment_interval,
+                        clip_embeddings=clip_embeddings,
                     )
                     clips.append(analysis)
                 except Exception as e:

@@ -1,9 +1,12 @@
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass
 
 import numpy as np
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -61,6 +64,44 @@ class SemanticSearch:
             })
         return enhanced_clips
 
+    def generate_clip_visual_embeddings(self, clips: List[Dict], video_dir: str) -> List[Dict]:
+        """Generate CLIP visual embeddings for each segment frame."""
+        try:
+            from app.video.clip_matcher import get_clip_matcher
+            matcher = get_clip_matcher()
+        except Exception as e:
+            logger.warning("CLIP matcher unavailable, skipping visual embeddings: %s", e)
+            return clips
+
+        enhanced_clips = []
+        for clip in clips:
+            filename = clip.get("filename", "")
+            video_path = str(Path(video_dir) / filename)
+            segment_descs = clip.get("segment_descriptions", clip.get("best_segments", []))
+            clip_visual_segs = []
+            for seg in segment_descs:
+                seg_start = seg.get("start", 0)
+                seg_end = seg.get("end", 0)
+                clip_emb = None
+                try:
+                    cap = __import__("cv2").VideoCapture(video_path)
+                    if cap.isOpened():
+                        fps = cap.get(__import__("cv2").CAP_PROP_FPS) or 30
+                        mid = (seg_start + seg_end) / 2
+                        cap.set(__import__("cv2").CAP_PROP_POS_FRAMES, int(mid * fps))
+                        ret, frame = cap.read()
+                        cap.release()
+                        if ret:
+                            clip_emb = matcher.encode_image(frame).tolist()
+                except Exception as e:
+                    logger.debug("CLIP encoding failed for %s segment %.1f: %s", filename, seg_start, e)
+                clip_visual_segs.append({**seg, "clip_embedding": clip_emb})
+            enhanced_clips.append({
+                **clip,
+                "segment_embeddings": clip_visual_segs,
+            })
+        return enhanced_clips
+
     def search_clips(self, query: str, clips: List[Dict], top_k: int = 5) -> List[SearchResult]:
         query_embedding = self.generate_embedding(query)
 
@@ -98,19 +139,33 @@ class SemanticSearch:
     def search_segments(self, query: str, clips: List[Dict], top_k: int = 3) -> List[Dict]:
         """Find the best matching segment across all clips for a query."""
         query_embedding = self.generate_embedding(query)
+
+        clip_text_emb = None
+        try:
+            from app.video.clip_matcher import get_clip_matcher
+            matcher = get_clip_matcher()
+            clip_text_emb = matcher.encode_text(query)
+        except Exception:
+            pass
+
         results = []
         for clip in clips:
             for seg in clip.get("segment_embeddings", clip.get("segment_descriptions", [])):
                 caption = seg.get("caption", "")
                 if not caption:
                     continue
+
                 seg_embedding = seg.get("embedding")
-                if seg_embedding:
-                    emb_score = self._cosine_similarity(query_embedding, seg_embedding)
-                else:
-                    emb_score = 0.0
+                emb_score = self._cosine_similarity(query_embedding, seg_embedding) if seg_embedding else 0.0
                 text_score = self._text_similarity(query, caption)
-                score = max(emb_score, text_score)
+
+                clip_vis_emb = seg.get("clip_embedding")
+                clip_score = 0.0
+                if clip_text_emb is not None and clip_vis_emb is not None:
+                    clip_score = float(np.dot(np.array(clip_text_emb), np.array(clip_vis_emb)))
+                    clip_score = max(0.0, clip_score)
+
+                score = max(emb_score, text_score, clip_score)
                 if score > 0.05:
                     results.append({
                         "clip_id": clip.get("clip_id", "unknown"),
@@ -118,6 +173,11 @@ class SemanticSearch:
                         "segment_end": seg.get("end", 0),
                         "caption": caption,
                         "score": round(score, 3),
+                        "scores": {
+                            "semantic": round(emb_score, 3),
+                            "text": round(text_score, 3),
+                            "clip_visual": round(clip_score, 3),
+                        },
                     })
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:top_k]

@@ -114,6 +114,52 @@ class FrameCaptioner:
         caption = self._clean_caption(caption)
         return caption
 
+    def caption_frame_with_prompt(self, frame: np.ndarray, prompt: str) -> str:
+        """Generate a caption conditioned on a text prompt.
+
+        The model generates a caption that continues the prompt, conditioned on the image.
+        Example: prompt="a photo of someone opening their eyes" →
+                 output="a child opening their eyes in bed"
+        """
+        self._load_model()
+
+        from PIL import Image
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        image = Image.fromarray(rgb)
+
+        text = f"a photo of {prompt}"
+        inputs = self._processor(images=image, text=text, return_tensors="pt")
+        if self.device == "cuda":
+            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        output = self._model.generate(**inputs, max_new_tokens=30, num_beams=3)
+        caption = self._processor.decode(output[0], skip_special_tokens=True).strip()
+        caption = self._clean_caption(caption)
+        return caption
+
+    def score_lyric_visual_match(
+        self, frame: np.ndarray, lyric_text: str, clip_score: float = 0.0
+    ) -> float:
+        """Score how well a frame matches a lyric using conditioned BLIP.
+
+        Generates a caption anchored to the lyric and measures similarity.
+        Returns a score between 0 and 1.
+        """
+        try:
+            conditioned = self.caption_frame_with_prompt(frame, lyric_text)
+            lyric_words = set(lyric_text.lower().split())
+            caption_words = set(conditioned.lower().split())
+            if not lyric_words or not caption_words:
+                return 0.0
+            intersection = lyric_words & caption_words
+            union = lyric_words | caption_words
+            text_sim = len(intersection) / len(union) if union else 0.0
+            conditioned_score = min(1.0, text_sim * 2)
+            return max(conditioned_score, clip_score)
+        except Exception as e:
+            logger.warning("Conditioned BLIP scoring failed: %s", e)
+            return clip_score
+
     @staticmethod
     def _clean_caption(caption: str) -> str:
         """Remove repetitive phrases from generated captions."""
