@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import Dashboard from './pages/Dashboard'
 import ProjectPage from './pages/ProjectPage'
+import ReviewPage from './pages/ReviewPage'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/project/:projectPath" element={<ProjectPage />} />
+            <Route path="/project/:projectPath/review" element={<ReviewPage />} />
           </Routes>
         </main>
       </div>

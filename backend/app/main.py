@@ -15,6 +15,7 @@ from app.api.search import router as search_router
 from app.api.timeline import router as timeline_router
 from app.api.render import router as render_router
 from app.api.qc import router as qc_router
+from app.api.revision import router as revision_router
 
 config = load_config()
 
@@ -43,6 +44,7 @@ app.include_router(search_router)
 app.include_router(timeline_router)
 app.include_router(render_router)
 app.include_router(qc_router)
+app.include_router(revision_router)
 
 
 @app.get("/")

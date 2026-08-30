@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { projectApi } from '../services/api'
 import type { Project } from '../types'
 
 function ProjectPage() {
   const { projectPath } = useParams<{ projectPath: string }>()
+  const navigate = useNavigate()
   const [project, setProject] = useState<Project | null>(null)
   const [loading, setLoading] = useState(true)
+  const [processing, setProcessing] = useState(false)
+  const [pipelineStep, setPipelineStep] = useState<string | null>(null)
+  const [lyrics, setLyrics] = useState('')
   const musicInputRef = useRef<HTMLInputElement>(null)
   const clipsInputRef = useRef<HTMLInputElement>(null)
 
@@ -35,12 +39,10 @@ function ProjectPage() {
     formData.append('file', file)
 
     try {
-      const response = await fetch(`/api/upload/music/${projectPath}`, {
+      await fetch(`/api/upload/music/${projectPath}`, {
         method: 'POST',
         body: formData,
       })
-      const data = await response.json()
-      console.log('Music uploaded:', data)
       loadProject(projectPath)
     } catch (err) {
       console.error('Upload failed:', err)
@@ -57,15 +59,66 @@ function ProjectPage() {
     }
 
     try {
-      const response = await fetch(`/api/upload/clips/${projectPath}`, {
+      await fetch(`/api/upload/clips/${projectPath}`, {
         method: 'POST',
         body: formData,
       })
-      const data = await response.json()
-      console.log('Clips uploaded:', data)
       loadProject(projectPath)
     } catch (err) {
       console.error('Upload failed:', err)
+    }
+  }
+
+  const handleLyricsSubmit = async () => {
+    if (!lyrics.trim() || !projectPath) return
+
+    try {
+      await fetch(`/api/analysis/lyrics/${projectPath}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: lyrics, use_whisper: false }),
+      })
+    } catch (err) {
+      console.error('Lyrics submit failed:', err)
+    }
+  }
+
+  const runPipeline = async () => {
+    if (!projectPath) return
+    setProcessing(true)
+
+    try {
+      setPipelineStep('Analyzing music...')
+      await fetch(`/api/analysis/music/${projectPath}`, { method: 'POST' })
+
+      setPipelineStep('Aligning lyrics...')
+      if (lyrics.trim()) {
+        await handleLyricsSubmit()
+      }
+
+      setPipelineStep('Analyzing clips...')
+      await fetch(`/api/analysis/clips/${projectPath}`, { method: 'POST' })
+
+      setPipelineStep('Building search index...')
+      await fetch(`/api/search/${projectPath}/index`, { method: 'POST' })
+
+      setPipelineStep('Generating timeline...')
+      await fetch(`/api/timeline/${projectPath}/generate`, { method: 'POST' })
+
+      setPipelineStep('Rendering preview...')
+      await fetch(`/api/render/${projectPath}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ preview: true }),
+      })
+
+      setPipelineStep('Done!')
+      navigate(`/project/${projectPath}/review`)
+    } catch (err) {
+      console.error('Pipeline failed:', err)
+      setPipelineStep('Pipeline failed')
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -79,7 +132,15 @@ function ProjectPage() {
 
   return (
     <div>
-      <h2 className="text-2xl font-bold mb-6">{project.name}</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-bold">{project.name}</h2>
+        <button
+          onClick={() => navigate(`/project/${projectPath}/review`)}
+          className="rounded-lg bg-slate-700 px-4 py-2 font-medium hover:bg-slate-600 transition-colors"
+        >
+          Review
+        </button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
@@ -92,7 +153,7 @@ function ProjectPage() {
             className="hidden"
           />
           {project.music_file ? (
-            <p className="text-green-400 text-sm">✓ Music uploaded</p>
+            <p className="text-green-400 text-sm">Music uploaded</p>
           ) : (
             <button
               onClick={() => musicInputRef.current?.click()}
@@ -106,6 +167,8 @@ function ProjectPage() {
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <h3 className="font-semibold mb-3">Lyrics</h3>
           <textarea
+            value={lyrics}
+            onChange={(e) => setLyrics(e.target.value)}
             placeholder="Paste lyrics here..."
             className="w-full h-32 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 resize-none"
           />
@@ -135,15 +198,39 @@ function ProjectPage() {
 
       <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
         <h3 className="font-semibold mb-3">Pipeline</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {['Music Analysis', 'Lyrics Alignment', 'Clip Analysis', 'Timeline Generation'].map((step) => (
-            <div key={step} className="rounded-lg bg-slate-700 p-3 text-center text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+          {[
+            'Music Analysis',
+            'Lyrics Alignment',
+            'Clip Analysis',
+            'Semantic Search',
+            'Timeline Generation',
+          ].map((step) => (
+            <div
+              key={step}
+              className={`rounded-lg p-3 text-center text-sm ${
+                pipelineStep?.toLowerCase().includes(step.split(' ')[0].toLowerCase())
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-700'
+              }`}
+            >
               {step}
             </div>
           ))}
         </div>
-        <button className="mt-4 w-full rounded-lg bg-blue-600 py-3 font-medium hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-          Generate
+
+        {pipelineStep && (
+          <div className="mb-4 text-sm text-slate-300">
+            Current: {pipelineStep}
+          </div>
+        )}
+
+        <button
+          onClick={runPipeline}
+          disabled={processing}
+          className="w-full rounded-lg bg-blue-600 py-3 font-medium hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {processing ? 'Processing...' : 'Generate'}
         </button>
       </div>
     </div>
