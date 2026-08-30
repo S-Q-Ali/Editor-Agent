@@ -57,6 +57,13 @@ class EditingBrain:
                 line, clips, lyrics_matches, used_clips, line_duration
             )
 
+            if not clip_result and clips:
+                fallback_clip = clips[0]
+                clip_result = (
+                    fallback_clip, 0, min(line_duration, fallback_clip.get("duration", line_duration)),
+                    0.1, "No suitable clip found, using fallback"
+                )
+
             if clip_result:
                 clip, source_start, source_end, confidence, reason = clip_result
 
@@ -113,12 +120,13 @@ class EditingBrain:
         match_results = lyrics_matches.get(lyric_text, [])
         if match_results:
             for match in match_results[:3]:
-                clip_id = match.get("clip_id", "")
-                score = match.get("score", 0)
-                for clip in clips:
-                    if clip.get("clip_id") == clip_id:
-                        candidates.append((clip, score))
-                        break
+                clip_id = match.clip_id if hasattr(match, 'clip_id') else match.get("clip_id", "")
+                score = match.score if hasattr(match, 'score') else match.get("score", 0)
+                if score > 0:
+                    for clip in clips:
+                        if clip.get("clip_id") == clip_id:
+                            candidates.append((clip, score))
+                            break
 
         if not candidates:
             for clip in clips:
@@ -137,32 +145,33 @@ class EditingBrain:
             clip_id = clip.get("clip_id", "unknown")
             times_used = used_clips.get(clip_id, 0)
 
-            if times_used >= self.max_repetition:
-                continue
-
             clip_duration = clip.get("duration", 0)
             best_segments = clip.get("best_segments", [])
+
+            repetition_penalty = max(0.1, 1.0 - times_used * 0.15)
 
             if best_segments:
                 for seg in best_segments:
                     seg_duration = seg["end"] - seg["start"]
                     if seg_duration >= required_duration * 0.8:
-                        confidence = base_score * (1 - times_used * 0.2)
-                        reason = f"Semantic match (score: {base_score:.2f}), segment quality: {seg['score']:.2f}"
+                        confidence = base_score * repetition_penalty
+                        reason = f"Semantic match (score: {base_score:.2f}), segment quality: {seg['score']:.2f}, used: {times_used}x"
                         return (clip, seg["start"], seg["start"] + required_duration, confidence, reason)
 
             if clip_duration >= required_duration:
                 source_start = 0
-                confidence = base_score * 0.8 * (1 - times_used * 0.2)
-                reason = f"Best available clip (quality: {base_score:.2f})"
+                confidence = base_score * 0.8 * repetition_penalty
+                reason = f"Best available clip (quality: {base_score:.2f}, used: {times_used}x)"
                 return (clip, source_start, source_start + required_duration, confidence, reason)
 
         clip, base_score = candidates[0]
         clip_id = clip.get("clip_id", "unknown")
         clip_duration = clip.get("duration", 0)
+        times_used = used_clips.get(clip_id, 0)
         actual_duration = min(required_duration, clip_duration)
-        confidence = base_score * 0.6
-        reason = f"Fallback selection (quality: {base_score:.2f})"
+        repetition_penalty = max(0.1, 1.0 - times_used * 0.1)
+        confidence = base_score * 0.6 * repetition_penalty
+        reason = f"Fallback selection (quality: {base_score:.2f}, used: {times_used}x)"
         return (clip, 0, actual_duration, confidence, reason)
 
     def _select_transition(self, current_time: float, sections: List[Dict]) -> str:

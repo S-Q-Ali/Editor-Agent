@@ -67,6 +67,7 @@ export interface TimelineEvent {
   transition: string
   reason: string
   confidence: number
+  lyric_text: string
 }
 
 export interface Timeline {

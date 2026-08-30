@@ -49,10 +49,15 @@ class SemanticSearch:
         scored_clips = []
         for clip in clips:
             clip_embedding = clip.get("semantic_embedding", [])
-            if not clip_embedding:
-                score = self._text_similarity(query, self._clip_to_text(clip))
-            else:
-                score = self._cosine_similarity(query_embedding, clip_embedding)
+            clip_text = self._clip_to_text(clip)
+
+            embedding_score = 0.0
+            if clip_embedding:
+                embedding_score = self._cosine_similarity(query_embedding, clip_embedding)
+
+            text_score = self._text_similarity(query, clip_text)
+
+            score = max(embedding_score, text_score)
 
             reason = self._generate_reason(query, clip, score)
             scored_clips.append(SearchResult(
@@ -117,10 +122,11 @@ class SemanticSearch:
         return len(intersection) / len(union)
 
     def _fallback_embedding(self, text: str) -> List[float]:
+        import hashlib
         words = text.lower().split()
         embedding = [0.0] * 384
-        for i, word in enumerate(words):
-            idx = hash(word) % 384
+        for word in words:
+            idx = int(hashlib.md5(word.encode()).hexdigest(), 16) % 384
             embedding[idx] = 1.0
         norm = np.linalg.norm(embedding)
         if norm > 0:
