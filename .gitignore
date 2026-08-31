@@ -12,6 +12,9 @@ dist/
 build/
 *.egg
 
+*.mp4
+*.mp3
+
 # Node
 node_modules/
 npm-debug.log*
@@ -50,15 +53,15 @@ models/*.pth
 models/*.safetensors
 
 # Project data (user content)
-projects/*/music/*
-projects/*/lyrics/*
-projects/*/clips/*
-projects/*/analysis/*
-projects/*/timeline/*
-projects/*/previews/*
-projects/*/renders/*
-projects/*/logs/*
-!projects/**/.gitkeep
+backend/projects/*/music/*
+backend/projects/*/lyrics/*
+backend/projects/*/clips/*
+backend/projects/*/analysis/*
+backend/projects/*/timeline/*
+backend/projects/*/previews/*
+backend/projects/*/renders/*
+backend/projects/*/logs/*
+!backend/projects/**/.gitkeep
 
 # Temporary files
 temp/
