@@ -1,4 +1,5 @@
 import json
+import shutil
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -66,6 +67,13 @@ class ProjectManager:
             project["updated_at"] = datetime.now().isoformat()
             self._save_project(Path(project_path), project)
         return project
+
+    def delete_project(self, project_path: str) -> bool:
+        project_dir = Path(project_path)
+        if project_dir.exists() and project_dir.is_dir():
+            shutil.rmtree(project_dir)
+            return True
+        return False
 
     def _save_project(self, project_dir: Path, data: Dict[str, Any]):
         project_file = project_dir / "project.json"

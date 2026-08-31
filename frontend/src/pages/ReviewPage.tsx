@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../stores/appStore'
+import { renderApi } from '../services/api'
 import type { TimelineEvent, QCResult } from '../types'
 import TimelineViewer from '../components/TimelineViewer'
 import VideoPlayer from '../components/VideoPlayer'
@@ -22,6 +23,7 @@ function ReviewPage() {
   const [loading, setLoading] = useState(true)
   const [qcLoading, setQcLoading] = useState(false)
   const [rendering, setRendering] = useState(false)
+  const [finalReady, setFinalReady] = useState(false)
 
   useEffect(() => {
     if (!projectPath) {
@@ -30,6 +32,7 @@ function ReviewPage() {
     }
     loadTimeline()
     checkForPreview()
+    checkForFinal()
   }, [projectPath])
 
   const loadTimeline = async () => {
@@ -63,6 +66,22 @@ function ReviewPage() {
       }
     } catch (err) {
       console.error('Failed to check preview:', err)
+    }
+  }
+
+  const checkForFinal = async () => {
+    if (!projectPath) return
+    try {
+      const response = await fetch(`/api/render/${encodeURIComponent(projectPath)}/status`)
+      if (response.ok) {
+        const data = await response.json()
+        const final = data.renders?.find((r: { filename: string }) =>
+          r.filename === 'final.mp4'
+        )
+        setFinalReady(!!final)
+      }
+    } catch (err) {
+      console.error('Failed to check final:', err)
     }
   }
 
@@ -111,6 +130,7 @@ function ReviewPage() {
       if (response.ok) {
         const data = await response.json()
         console.log('Final render complete:', data)
+        setFinalReady(true)
       }
     } catch (err) {
       console.error('Failed to render final:', err)
@@ -132,6 +152,18 @@ function ReviewPage() {
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold">Review & Approve</h2>
         <div className="flex gap-3">
+          {finalReady && (
+            <a
+              href={projectPath ? renderApi.downloadUrl(projectPath) : '#'}
+              download
+              className="rounded-lg bg-green-600 px-4 py-2 font-medium hover:bg-green-500 transition-colors inline-flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+              Download Final Video
+            </a>
+          )}
           <button
             onClick={runQC}
             disabled={qcLoading}

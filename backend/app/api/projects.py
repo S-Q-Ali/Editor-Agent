@@ -42,3 +42,14 @@ async def update_project(project_path: str, data: ProjectUpdate):
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     return project
+
+
+@router.delete("/{project_path:path}")
+async def delete_project(project_path: str):
+    project = pm.get_project(project_path)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    deleted = pm.delete_project(project_path)
+    if not deleted:
+        raise HTTPException(status_code=500, detail="Failed to delete project")
+    return {"deleted": True, "path": project_path}

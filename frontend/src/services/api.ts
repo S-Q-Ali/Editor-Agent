@@ -11,6 +11,11 @@ export const projectApi = {
   create: (name: string) => api.post<Project>('/projects/', { name }),
   update: (path: string, data: Partial<Project>) =>
     api.patch<Project>(`/projects/${path}`, data),
+  delete: (path: string) => api.delete(`/projects/${path}`),
+}
+
+export const renderApi = {
+  downloadUrl: (path: string) => `/api/render/${encodeURIComponent(path)}/download`,
 }
 
 export const healthApi = {

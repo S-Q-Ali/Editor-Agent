@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
 import json
@@ -68,3 +69,25 @@ async def get_render_status(project_path: str):
         })
 
     return {"renders": renders}
+
+
+@router.get("/{project_path:path}/download")
+async def download_render(project_path: str):
+    renders_dir = Path(project_path) / "renders"
+    final_file = renders_dir / "final.mp4"
+
+    if not final_file.exists():
+        preview_file = renders_dir / "preview.mp4"
+        if preview_file.exists():
+            return FileResponse(
+                path=str(preview_file),
+                filename="preview.mp4",
+                media_type="video/mp4",
+            )
+        raise HTTPException(status_code=404, detail="No rendered video found")
+
+    return FileResponse(
+        path=str(final_file),
+        filename="final.mp4",
+        media_type="video/mp4",
+    )

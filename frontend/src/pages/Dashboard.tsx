@@ -45,6 +45,15 @@ function Dashboard() {
     }
   }
 
+  const handleDeleteProject = async (project: Project) => {
+    try {
+      await projectApi.delete(project.path)
+      setProjects(projects.filter((p) => p.id !== project.id))
+    } catch (err) {
+      console.error('Failed to delete project:', err)
+    }
+  }
+
   const handleSelectProject = (project: Project) => {
     setCurrentProject(project)
     navigate('/project')
@@ -128,6 +137,7 @@ function Dashboard() {
               key={project.id}
               project={project}
               onClick={() => handleSelectProject(project)}
+              onDelete={handleDeleteProject}
             />
           ))}
         </div>
