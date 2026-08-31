@@ -146,7 +146,8 @@ class FrameCaptioner:
         Returns a score between 0 and 1.
         """
         try:
-            conditioned = self.caption_frame_with_prompt(frame, lyric_text)
+            prompt = self._lyric_to_prompt(lyric_text)
+            conditioned = self.caption_frame_with_prompt(frame, prompt)
             lyric_words = set(lyric_text.lower().split())
             caption_words = set(conditioned.lower().split())
             if not lyric_words or not caption_words:
@@ -159,6 +160,53 @@ class FrameCaptioner:
         except Exception as e:
             logger.warning("Conditioned BLIP scoring failed: %s", e)
             return clip_score
+
+    @staticmethod
+    def _lyric_to_prompt(lyric_text: str) -> str:
+        """Convert a lyric line to a BLIP prompt for conditioned captioning."""
+        lyric_lower = lyric_text.lower().strip()
+
+        verb_prompts = {
+            "open": "a photo of someone opening their eyes",
+            "eyes": "a photo of someone opening their eyes",
+            "wake": "a photo of someone waking up",
+            "jump": "a photo of someone jumping",
+            "stretch": "a photo of someone stretching their arms",
+            "dance": "a photo of someone dancing",
+            "clap": "a photo of someone clapping hands",
+            "brush": "a photo of someone brushing teeth",
+            "teeth": "a photo of someone brushing teeth",
+            "wash": "a photo of someone washing hands or face",
+            "splash": "a photo of someone splashing water",
+            "smile": "a photo of someone smiling",
+            "sing": "a photo of someone singing",
+            "run": "a photo of someone running",
+            "walk": "a photo of someone walking",
+            "sit": "a photo of someone sitting",
+            "stand": "a photo of someone standing",
+            "lay": "a photo of someone lying down",
+            "sleep": "a photo of someone sleeping",
+            "eat": "a photo of someone eating food",
+            "drink": "a photo of someone drinking",
+            "read": "a photo of someone reading a book",
+            "play": "a photo of someone playing",
+            "touch": "a photo of someone touching something",
+            "wiggle": "a photo of someone wiggling",
+            "shine": "a photo of something shining bright",
+            "bright": "a photo of something bright and colorful",
+            "sun": "a photo of the sun or sunshine",
+            "morning": "a photo of a morning scene",
+            "hello": "a photo of someone saying hello",
+            "goodbye": "a photo of someone waving goodbye",
+            "happy": "a photo of a happy child",
+            "ready": "a photo of someone getting ready",
+        }
+
+        for keyword, prompt in verb_prompts.items():
+            if keyword in lyric_lower:
+                return prompt
+
+        return f"a photo of {lyric_text}"
 
     @staticmethod
     def _clean_caption(caption: str) -> str:

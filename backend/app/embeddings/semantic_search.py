@@ -136,8 +136,14 @@ class SemanticSearch:
                 results[query] = self.search_clips(query, clips, top_k_per_line)
         return results
 
-    def search_segments(self, query: str, clips: List[Dict], top_k: int = 3) -> List[Dict]:
-        """Find the best matching segment across all clips for a query."""
+    def search_segments(self, query: str, clips: List[Dict], top_k: int = 10, video_dir: str = "") -> List[Dict]:
+        """Find the best matching segment across all clips for a query.
+
+        Uses weighted fusion of 3 signals:
+        - semantic: sentence-transformer cosine similarity (30%)
+        - text: Jaccard word overlap (15%)
+        - clip_visual: CLIP dot product (55%)
+        """
         query_embedding = self.generate_embedding(query)
 
         clip_text_emb = None
@@ -165,7 +171,11 @@ class SemanticSearch:
                     clip_score = float(np.dot(np.array(clip_text_emb), np.array(clip_vis_emb)))
                     clip_score = max(0.0, clip_score)
 
-                score = max(emb_score, text_score, clip_score)
+                score = (
+                    0.30 * emb_score +
+                    0.15 * text_score +
+                    0.55 * clip_score
+                )
                 if score > 0.05:
                     results.append({
                         "clip_id": clip.get("clip_id", "unknown"),
@@ -182,13 +192,13 @@ class SemanticSearch:
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:top_k]
 
-    def search_segments_for_lyrics(self, lyrics: List[Dict], clips: List[Dict], top_k_per_line: int = 3) -> Dict[str, List[Dict]]:
+    def search_segments_for_lyrics(self, lyrics: List[Dict], clips: List[Dict], top_k_per_line: int = 10, video_dir: str = "") -> Dict[str, List[Dict]]:
         """Match each lyric line to the best segment across all clips."""
         results = {}
         for line in lyrics:
             query = line.get("text", "")
             if query:
-                results[query] = self.search_segments(query, clips, top_k_per_line)
+                results[query] = self.search_segments(query, clips, top_k_per_line, video_dir)
         return results
 
     def save_embeddings(self, clips: List[Dict], output_path: str):

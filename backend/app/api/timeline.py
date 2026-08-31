@@ -16,7 +16,6 @@ async def generate_timeline(project_path: str):
     music_file = analysis_dir / "music_analysis.json"
     lyrics_file = analysis_dir / "lyrics_alignment.json"
     clips_file = analysis_dir / "clip_embeddings.json"
-    search_file = analysis_dir / "clip_embeddings.json"
 
     if not music_file.exists():
         raise HTTPException(status_code=404, detail="Music analysis not found")
@@ -39,8 +38,10 @@ async def generate_timeline(project_path: str):
 
     lyrics_matches = {}
     segment_matches = {}
-    if search_file.exists():
-        with open(search_file, "r") as f:
+    clips_dir = project_dir / "clips"
+    video_dir = str(clips_dir) if clips_dir.exists() else ""
+    if clips_file.exists():
+        with open(clips_file, "r") as f:
             embeddings_data = json.load(f)
         from app.embeddings.semantic_search import SemanticSearch
         search_engine = SemanticSearch()
@@ -51,7 +52,8 @@ async def generate_timeline(project_path: str):
         )
         segment_matches = search_engine.search_segments_for_lyrics(
             lyrics_alignment.get("lines", []),
-            enriched_clips
+            enriched_clips,
+            video_dir=video_dir,
         )
 
     timeline = brain.generate_timeline(

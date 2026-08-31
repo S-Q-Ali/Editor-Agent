@@ -31,6 +31,7 @@ async def build_index(project_path: str):
         raise HTTPException(status_code=400, detail="No clips found to index")
 
     enhanced_clips = search_engine.generate_clip_embeddings(clips)
+    enhanced_clips = search_engine.generate_segment_embeddings(enhanced_clips)
     search_engine.save_embeddings(enhanced_clips, str(analysis_dir / "clip_embeddings.json"))
 
     return {

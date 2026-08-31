@@ -1,8 +1,11 @@
 import json
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, asdict
 import random
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -16,12 +19,14 @@ class TimelineEvent:
     reason: str
     confidence: float
     lyric_text: str = ""
+    selection_method: str = ""
 
 
 class EditingBrain:
     def __init__(self):
         self.transitions = ["cut", "fade", "crossfade", "dissolve"]
         self.max_repetition = 2
+        self.confidence_threshold = 0.15
 
     def generate_timeline(
         self,
@@ -47,6 +52,16 @@ class EditingBrain:
         timeline_events = []
         used_clips = {}
         current_time = 0
+        prev_clip = None
+        prev_source_start = 0
+        prev_source_end = 0
+        stats = {
+            "segment_match_count": 0,
+            "semantic_match_count": 0,
+            "extend_fallback_count": 0,
+            "hard_fallback_count": 0,
+            "low_confidence_count": 0,
+        }
 
         for line in lyrics_lines:
             if current_time >= duration:
@@ -60,27 +75,60 @@ class EditingBrain:
                 line_duration = 2.0
 
             clip_result = None
+            selection_method = ""
+
             if segment_matches:
                 clip_result = self._select_clip_with_segment(
                     line, clips, segment_matches, used_clips, line_duration
                 )
+                if clip_result:
+                    selection_method = "segment_match"
+                    stats["segment_match_count"] += 1
 
             if not clip_result:
                 clip_result = self._select_clip(
                     line, clips, lyrics_matches, used_clips, line_duration
                 )
-
-            if not clip_result and clips:
-                fallback_clip = clips[0]
-                clip_result = (
-                    fallback_clip, 0, min(line_duration, fallback_clip.get("duration", line_duration)),
-                    0.1, "No suitable clip found, using fallback"
-                )
+                if clip_result:
+                    selection_method = "semantic_match"
+                    stats["semantic_match_count"] += 1
 
             if clip_result:
                 clip, source_start, source_end, confidence, reason = clip_result
+                if confidence < self.confidence_threshold and prev_clip is not None:
+                    clip = prev_clip
+                    source_start = prev_source_start
+                    source_end = prev_source_end
+                    confidence = max(0.1, confidence)
+                    reason = f"Extended previous clip (low confidence: {confidence:.2f})"
+                    selection_method = "extend_fallback"
+                    stats["extend_fallback_count"] += 1
+                    stats["low_confidence_count"] += 1
+                else:
+                    source_start = self._snap_to_beats(source_start, beats)
+            else:
+                if clips:
+                    if prev_clip is not None:
+                        clip = prev_clip
+                        source_start = prev_source_start
+                        source_end = prev_source_end
+                        confidence = 0.1
+                        reason = "Extended previous clip (no match found)"
+                        selection_method = "extend_fallback"
+                        stats["extend_fallback_count"] += 1
+                    else:
+                        fallback_clip = clips[0]
+                        clip = fallback_clip
+                        source_start = 0
+                        source_end = min(line_duration, fallback_clip.get("duration", line_duration))
+                        confidence = 0.1
+                        reason = "No suitable clip found, using fallback"
+                        selection_method = "hard_fallback"
+                        stats["hard_fallback_count"] += 1
+                    clip_result = (clip, source_start, source_end, confidence, reason)
 
-                source_start = self._snap_to_beats(source_start, beats)
+            if clip_result:
+                clip, source_start, source_end, confidence, reason = clip_result
 
                 event = TimelineEvent(
                     clip_id=clip.get("clip_id", "unknown"),
@@ -92,11 +140,24 @@ class EditingBrain:
                     reason=reason,
                     confidence=confidence,
                     lyric_text=line.get("text", ""),
+                    selection_method=selection_method,
                 )
                 timeline_events.append(asdict(event))
 
                 clip_id = clip.get("clip_id", "unknown")
                 used_clips[clip_id] = used_clips.get(clip_id, 0) + 1
+                prev_clip = clip
+                prev_source_start = source_start
+                prev_source_end = source_end
+
+                logger.info(
+                    "Event %d: lyric='%s' clip=%s method=%s confidence=%.3f",
+                    len(timeline_events) - 1,
+                    line.get("text", "")[:30],
+                    clip_id[:20],
+                    selection_method,
+                    confidence,
+                )
 
             current_time += line_duration
 
@@ -113,6 +174,15 @@ class EditingBrain:
                 "sections_count": len(sections),
                 "lyrics_lines": len(lyrics_lines),
                 "clips_used": len(used_clips),
+                "segment_match_count": stats["segment_match_count"],
+                "semantic_match_count": stats["semantic_match_count"],
+                "extend_fallback_count": stats["extend_fallback_count"],
+                "hard_fallback_count": stats["hard_fallback_count"],
+                "low_confidence_count": stats["low_confidence_count"],
+                "avg_confidence": round(
+                    sum(e["confidence"] for e in timeline_events) / max(len(timeline_events), 1),
+                    3,
+                ),
             },
         }
 
@@ -197,13 +267,16 @@ class EditingBrain:
         used_clips: Dict,
         required_duration: float,
     ) -> Optional[tuple]:
-        """Try to find a specific segment in a clip that matches the lyric."""
+        """Find the BEST matching segment across all clips for a lyric."""
         lyric_text = lyric_line.get("text", "")
         matches = segment_matches.get(lyric_text, [])
 
+        best_result = None
+        best_score = -1
+
         for match in matches:
             score = match.get("score", 0)
-            if score < 0.2:
+            if score < 0.05:
                 continue
 
             clip_id = match.get("clip_id", "")
@@ -219,14 +292,16 @@ class EditingBrain:
 
             times_used = used_clips.get(clip_id, 0)
             repetition_penalty = max(0.1, 1.0 - times_used * 0.15)
-
-            actual_end = min(seg_start + required_duration, clip.get("duration", seg_end))
             confidence = score * repetition_penalty
-            caption = match.get("caption", "")
-            reason = f"Segment match: \"{caption}\" (score: {score:.2f}, used: {times_used}x)"
-            return (clip, seg_start, actual_end, confidence, reason)
 
-        return None
+            if confidence > best_score:
+                best_score = confidence
+                actual_end = min(seg_start + required_duration, clip.get("duration", seg_end))
+                caption = match.get("caption", "")
+                reason = f"Segment match: \"{caption}\" (score: {score:.2f}, used: {times_used}x)"
+                best_result = (clip, seg_start, actual_end, confidence, reason)
+
+        return best_result
 
     def _generate_beat_grid(self, beats: List[float], duration: float) -> List[Dict]:
         """Generate lyric-line-style grid from beat timestamps (2 beats per event)."""
