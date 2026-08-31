@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '../stores/appStore'
-import { projectApi } from '../services/api'
+import { projectApi, timelineApi } from '../services/api'
 import type { Project } from '../types'
+import ClipOrderPanel from '../components/ClipOrderPanel'
 
 function getFileName(path: string) {
   return path.split(/[/\\]/).pop() || path
@@ -23,6 +24,8 @@ function ProjectPage() {
   const [clipsProgress, setClipsProgress] = useState(0)
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [timelineMode, setTimelineMode] = useState<string>(currentProject?.timeline_mode || 'auto')
+  const [clipOrderSaved, setClipOrderSaved] = useState(false)
 
   const musicInputRef = useRef<HTMLInputElement>(null)
   const clipsInputRef = useRef<HTMLInputElement>(null)
@@ -184,7 +187,7 @@ function ProjectPage() {
       await fetch(`/api/search/${encodeURIComponent(projectPath)}/index`, { method: 'POST' })
 
       setPipelineStep('Generating timeline...')
-      await fetch(`/api/timeline/${encodeURIComponent(projectPath)}/generate`, { method: 'POST' })
+      await timelineApi.generate(projectPath, timelineMode)
 
       setPipelineStep('Rendering preview...')
       await fetch(`/api/render/${encodeURIComponent(projectPath)}`, {
@@ -357,6 +360,55 @@ function ProjectPage() {
           )}
         </div>
       </div>
+
+      {/* Timeline Mode Selector */}
+      {project.clips.length > 0 && (
+        <div className="rounded-lg border border-slate-700 bg-slate-800 p-6 mb-6">
+          <h3 className="font-semibold mb-3">Timeline Mode</h3>
+          <div className="flex gap-4 mb-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="timelineMode"
+                value="auto"
+                checked={timelineMode === 'auto'}
+                onChange={() => setTimelineMode('auto')}
+                className="text-blue-500"
+              />
+              <div>
+                <span className="text-sm font-medium">Auto</span>
+                <span className="text-xs text-slate-400 ml-2">
+                  — Agent picks best clip for each lyric
+                </span>
+              </div>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="timelineMode"
+                value="sequential"
+                checked={timelineMode === 'sequential'}
+                onChange={() => setTimelineMode('sequential')}
+                className="text-blue-500"
+              />
+              <div>
+                <span className="text-sm font-medium">Sequential</span>
+                <span className="text-xs text-slate-400 ml-2">
+                  — Use clips in your uploaded order
+                </span>
+              </div>
+            </label>
+          </div>
+
+          {timelineMode === 'sequential' && (
+            <ClipOrderPanel
+              projectPath={projectPath || ''}
+              clipFiles={project.clips.map(c => c.filename)}
+              onOrderSaved={() => setClipOrderSaved(true)}
+            />
+          )}
+        </div>
+      )}
 
       <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
         <h3 className="font-semibold mb-3">Pipeline</h3>

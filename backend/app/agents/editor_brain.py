@@ -20,14 +20,16 @@ class TimelineEvent:
     confidence: float
     lyric_text: str = ""
     selection_method: str = ""
+    clip_caption: str = ""
 
 
 class EditingBrain:
     def __init__(self):
         self.transitions = ["cut", "fade", "crossfade", "dissolve"]
-        self.max_repetition = 2
+        self.max_repetition = 4
         self.confidence_threshold = 0.10
         self._fallback_idx = 0
+        self.min_event_duration = 2.0
 
     def generate_timeline(
         self,
@@ -37,7 +39,14 @@ class EditingBrain:
         lyrics_matches: Dict,
         segment_matches: Optional[Dict] = None,
         clip_matches: Optional[Dict] = None,
+        mode: str = "auto",
+        clip_order: Optional[List[Dict]] = None,
     ) -> Dict[str, Any]:
+        if mode == "sequential" and clip_order:
+            return self.generate_sequential_timeline(
+                music_analysis, lyrics_alignment, clips, clip_order,
+                clip_matches=clip_matches, segment_matches=segment_matches,
+            )
         duration = music_analysis.get("duration", 0)
         beats = music_analysis.get("beats", [])
         sections = music_analysis.get("sections", [])
@@ -153,6 +162,8 @@ class EditingBrain:
             if clip_result:
                 clip, source_start, source_end, confidence, reason = clip_result
 
+                clip_caption = self._lookup_clip_caption(clip, source_start, source_end)
+
                 event = TimelineEvent(
                     clip_id=clip.get("clip_id", "unknown"),
                     source_start=source_start,
@@ -164,6 +175,7 @@ class EditingBrain:
                     confidence=confidence,
                     lyric_text=line.get("text", ""),
                     selection_method=selection_method,
+                    clip_caption=clip_caption,
                 )
                 timeline_events.append(asdict(event))
 
@@ -183,6 +195,29 @@ class EditingBrain:
                 )
 
             current_time += line_duration
+
+        if current_time < duration and clips:
+            remaining = duration - current_time
+            fallback_clip = clips[self._fallback_idx % len(clips)]
+            self._fallback_idx += 1
+            clip_id = fallback_clip.get("clip_id", "unknown")
+            clip_duration = fallback_clip.get("duration", remaining)
+            source_start = self._snap_to_beats(0, beats)
+            source_end = min(remaining, clip_duration)
+            tail_caption = self._lookup_clip_caption(fallback_clip, source_start, source_end)
+            timeline_events.append({
+                "clip_id": clip_id,
+                "source_start": round(source_start, 3),
+                "source_end": round(source_end, 3),
+                "timeline_start": round(current_time, 3),
+                "timeline_end": round(duration, 3),
+                "transition": "fade",
+                "reason": f"Tail fill: remaining {remaining:.1f}s",
+                "confidence": 0.3,
+                "lyric_text": "[tail]",
+                "selection_method": "hard_fallback",
+                "clip_caption": tail_caption,
+            })
 
         timeline = {
             "version": 1,
@@ -212,6 +247,284 @@ class EditingBrain:
         }
 
         return timeline
+
+    def generate_sequential_timeline(
+        self,
+        music_analysis: Dict,
+        lyrics_alignment: Dict,
+        clips: List[Dict],
+        clip_order: List[Dict],
+        clip_matches: Optional[Dict] = None,
+        segment_matches: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
+        duration = music_analysis.get("duration", 0)
+        beats = music_analysis.get("beats", [])
+        sections = music_analysis.get("sections", [])
+        lyrics_lines = lyrics_alignment.get("lines", [])
+
+        if not lyrics_lines:
+            if beats and len(beats) > 1:
+                lyrics_lines = self._generate_beat_grid(beats, duration)
+            elif duration > 0:
+                lyrics_lines = self._generate_segment_grid(duration)
+            else:
+                return self._generate_empty_timeline(duration)
+
+        ordered_clips = self._build_ordered_clip_list(clips, clip_order)
+        if not ordered_clips:
+            return self._generate_empty_timeline(duration)
+
+        grouped = self._group_lyrics_into_phrases(lyrics_lines, beats)
+        self._assign_durations(grouped, duration, beats)
+
+        events = []
+        used_ranges: Dict[str, List[tuple]] = {}
+        current_time = 0.0
+        clip_idx = 0
+        stats = {
+            "sequential_count": 0,
+            "clip_match_count": 0,
+            "hard_fallback_count": 0,
+        }
+
+        for phrase in grouped:
+            if current_time >= duration:
+                break
+
+            phrase_duration = phrase["duration"]
+            if phrase_duration < self.min_event_duration:
+                phrase_duration = self.min_event_duration
+
+            clip = ordered_clips[clip_idx % len(ordered_clips)]
+            clip_id = clip.get("clip_id", "unknown")
+            clip_duration = clip.get("duration", 15)
+
+            source_start, source_end, confidence = self._pick_sequential_range(
+                clip, phrase, used_ranges, phrase_duration, beats
+            )
+
+            used_ranges.setdefault(clip_id, []).append((source_start, source_end))
+
+            clip_caption = self._lookup_clip_caption(clip, source_start, source_end)
+
+            event = {
+                "clip_id": clip_id,
+                "source_start": round(source_start, 3),
+                "source_end": round(source_end, 3),
+                "timeline_start": round(current_time, 3),
+                "timeline_end": round(current_time + phrase_duration, 3),
+                "transition": self._select_transition(current_time, sections),
+                "reason": f"Sequential: phrase '{phrase['text'][:40]}' → clip '{clip_id}'",
+                "confidence": round(confidence, 3),
+                "lyric_text": phrase["text"],
+                "selection_method": "sequential",
+                "clip_caption": clip_caption,
+            }
+            events.append(event)
+            stats["sequential_count"] += 1
+
+            clip_idx += 1
+
+            logger.info(
+                "Sequential event %d: phrase='%s' clip=%s range=[%.1f-%.1f] confidence=%.3f",
+                len(events) - 1,
+                phrase["text"][:30],
+                clip_id[:20],
+                source_start,
+                source_end,
+                confidence,
+            )
+
+            current_time += phrase_duration
+
+        if current_time < duration and ordered_clips:
+            remaining = duration - current_time
+            clip = ordered_clips[clip_idx % len(ordered_clips)]
+            clip_id = clip.get("clip_id", "unknown")
+            clip_duration = clip.get("duration", 15)
+            source_start, source_end, confidence = self._pick_sequential_range(
+                clip, {"text": "[tail]", "duration": remaining}, used_ranges, remaining, beats
+            )
+            tail_caption = self._lookup_clip_caption(clip, source_start, source_end)
+            events.append({
+                "clip_id": clip_id,
+                "source_start": round(source_start, 3),
+                "source_end": round(source_end, 3),
+                "timeline_start": round(current_time, 3),
+                "timeline_end": round(duration, 3),
+                "transition": "fade",
+                "reason": f"Sequential tail fill: remaining {remaining:.1f}s",
+                "confidence": round(confidence, 3),
+                "lyric_text": "[tail]",
+                "selection_method": "sequential",
+                "clip_caption": tail_caption,
+            })
+
+        timeline = {
+            "version": 1,
+            "duration": duration,
+            "total_events": len(events),
+            "tracks": {"video": events, "audio": []},
+            "metadata": {
+                "mode": "sequential",
+                "bpm": music_analysis.get("bpm", 0),
+                "sections_count": len(sections),
+                "lyrics_lines": len(lyrics_lines),
+                "grouped_phrases": len(grouped),
+                "clips_available": len(ordered_clips),
+                "clips_used": len(set(e["clip_id"] for e in events)),
+                "sequential_count": stats["sequential_count"],
+                "avg_confidence": round(
+                    sum(e["confidence"] for e in events) / max(len(events), 1), 3
+                ),
+            },
+        }
+        return timeline
+
+    def _build_ordered_clip_list(self, clips: List[Dict], clip_order: List[Dict]) -> List[Dict]:
+        order_map = {c["filename"]: c["index"] for c in clip_order}
+        sorted_clips = sorted(
+            clips,
+            key=lambda c: order_map.get(c.get("filename", ""), 999)
+        )
+        return sorted_clips
+
+    def _group_lyrics_into_phrases(
+        self, lyrics_lines: List[Dict], beats: List[float]
+    ) -> List[Dict]:
+        if not lyrics_lines:
+            return []
+
+        min_duration = self.min_event_duration
+        gap_threshold = 0.5
+        max_phrase_duration = 4.0
+
+        phrases = []
+        current_phrase = None
+
+        for line in lyrics_lines:
+            text = line.get("text", "").strip()
+            start = line.get("start", 0)
+            end = line.get("end", start + 1.0)
+            line_duration = end - start
+
+            if line_duration <= 0:
+                line_duration = 1.0
+
+            if current_phrase is None:
+                current_phrase = {
+                    "text": text,
+                    "start": start,
+                    "end": end,
+                    "duration": end - start,
+                    "lines": [line],
+                }
+                continue
+
+            gap = start - current_phrase["end"]
+            combined_duration = end - current_phrase["start"]
+
+            should_merge = (
+                gap <= gap_threshold
+                and combined_duration <= max_phrase_duration
+                and (current_phrase["duration"] < min_duration or line_duration < min_duration)
+            )
+
+            if should_merge:
+                current_phrase["text"] += ", " + text
+                current_phrase["end"] = end
+                current_phrase["duration"] = end - current_phrase["start"]
+                current_phrase["lines"].append(line)
+            else:
+                if current_phrase["duration"] < min_duration:
+                    current_phrase["duration"] = min_duration
+                phrases.append(current_phrase)
+                current_phrase = {
+                    "text": text,
+                    "start": start,
+                    "end": end,
+                    "duration": end - start,
+                    "lines": [line],
+                }
+
+        if current_phrase:
+            if current_phrase["duration"] < min_duration:
+                current_phrase["duration"] = min_duration
+            phrases.append(current_phrase)
+
+        return phrases
+
+    def _assign_durations(
+        self, phrases: List[Dict], total_duration: float, beats: List[float]
+    ):
+        beat_duration = 60.0 / max(beats[1] - beats[0], 0.3) if len(beats) > 1 else 2.0
+        min_event = max(self.min_event_duration, beat_duration * 4)
+
+        for phrase in phrases:
+            if phrase["duration"] < min_event:
+                phrase["duration"] = min_event
+
+        total_assigned = sum(p["duration"] for p in phrases)
+        if total_assigned < total_duration and phrases:
+            scale = total_duration / total_assigned
+            for phrase in phrases:
+                phrase["duration"] = round(phrase["duration"] * scale, 3)
+
+    def _pick_sequential_range(
+        self,
+        clip: Dict,
+        phrase: Dict,
+        used_ranges: Dict[str, List[tuple]],
+        required_duration: float,
+        beats: List[float],
+    ) -> tuple:
+        clip_id = clip.get("clip_id", "unknown")
+        clip_duration = clip.get("duration", 15)
+        already_used = used_ranges.get(clip_id, [])
+
+        best_segments = clip.get("best_segments", [])
+
+        if best_segments:
+            for seg in best_segments:
+                seg_start = seg.get("start", 0)
+                seg_end = seg.get("end", clip_duration)
+                seg_duration = seg_end - seg_start
+
+                if seg_duration < required_duration * 0.5:
+                    continue
+
+                overlap = False
+                for used_start, used_end in already_used:
+                    if seg_start < used_end and seg_end > used_start:
+                        overlap = True
+                        break
+
+                if not overlap:
+                    source_start = self._snap_to_beats(seg_start, beats)
+                    source_end = min(source_start + required_duration, clip_duration)
+                    if source_end - source_start >= required_duration * 0.5:
+                        confidence = 0.7 + seg.get("score", 0) * 0.3
+                        return source_start, source_end, confidence
+
+        num_segments = max(1, int(clip_duration / max(required_duration, 1.0)))
+        for i in range(num_segments):
+            seg_start = i * (clip_duration / num_segments)
+            seg_end = min(seg_start + required_duration, clip_duration)
+
+            overlap = False
+            for used_start, used_end in already_used:
+                if seg_start < used_end and seg_end > used_start:
+                    overlap = True
+                    break
+
+            if not overlap:
+                source_start = self._snap_to_beats(seg_start, beats)
+                source_end = min(source_start + required_duration, clip_duration)
+                return source_start, source_end, 0.5
+
+        source_start = 0
+        source_end = min(required_duration, clip_duration)
+        return source_start, source_end, 0.3
 
     def _select_clip(
         self,
@@ -518,6 +831,32 @@ class EditingBrain:
             "tracks": {"video": [], "audio": []},
             "metadata": {},
         }
+
+    def _lookup_clip_caption(
+        self, clip: Dict, source_start: float, source_end: float
+    ) -> str:
+        segment_descriptions = clip.get("segment_descriptions", [])
+        if not segment_descriptions:
+            return clip.get("scene_description", "")
+
+        best_caption = ""
+        best_overlap = 0
+
+        for seg in segment_descriptions:
+            seg_start = seg.get("start", 0)
+            seg_end = seg.get("end", 0)
+            overlap_start = max(source_start, seg_start)
+            overlap_end = min(source_end, seg_end)
+            overlap = max(0, overlap_end - overlap_start)
+
+            if overlap > best_overlap:
+                best_overlap = overlap
+                best_caption = seg.get("caption", "")
+
+        if not best_caption:
+            best_caption = clip.get("scene_description", "")
+
+        return best_caption
 
     def validate_timeline(self, timeline: Dict) -> Dict:
         errors = []

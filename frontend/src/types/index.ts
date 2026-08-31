@@ -8,6 +8,8 @@ export interface Project {
   music_file: string | null
   lyrics_file: string | null
   clips: ClipInfo[]
+  clip_order_file: string | null
+  timeline_mode: string
   analysis_complete: boolean
   timeline_ready: boolean
   preview_ready: boolean
@@ -68,6 +70,24 @@ export interface TimelineEvent {
   reason: string
   confidence: number
   lyric_text: string
+  selection_method: string
+  clip_caption: string
+}
+
+export interface ClipOrderItem {
+  index: number
+  filename: string
+}
+
+export interface ClipOrder {
+  mode: string
+  clips: ClipOrderItem[]
+}
+
+export interface CaptionTemplate {
+  id: string
+  label: string
+  description: string
 }
 
 export interface Timeline {

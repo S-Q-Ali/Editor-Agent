@@ -4,6 +4,8 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from app.rendering.caption_templates import build_caption_filter_chain
+
 
 class FFmpegRenderer:
     def __init__(self):
@@ -19,6 +21,9 @@ class FFmpegRenderer:
         audio_path: str,
         output_path: str,
         preview: bool = False,
+        caption_template: str = "none",
+        caption_fontsize: Optional[int] = None,
+        caption_fontcolor: Optional[str] = None,
     ) -> Dict[str, Any]:
         events = timeline.get("tracks", {}).get("video", [])
         if not events:
@@ -51,22 +56,37 @@ class FFmpegRenderer:
             for seg in segment_files:
                 f.write(f"file '{os.path.abspath(seg)}'\n")
 
-        concat_result = self._concat_segments(concat_list, output_path)
+        concat_output = str(self.temp_dir / "concat_raw.mp4")
+        concat_result = self._concat_segments(concat_list, concat_output)
         if concat_result.get("error"):
             return concat_result
 
-        audio_result = self._replace_audio(output_path, audio_path, output_path)
+        video_with_captions = concat_output
+        if caption_template != "none":
+            caption_result = self._apply_captions(
+                concat_output, events, output_path,
+                caption_template, caption_fontsize, caption_fontcolor,
+            )
+            if caption_result.get("error"):
+                return caption_result
+            video_with_captions = output_path
+
+        audio_result = self._replace_audio(video_with_captions, audio_path, output_path)
         if audio_result.get("error"):
             return audio_result
 
         self._cleanup_segments(segment_files)
-        os.remove(concat_list)
+        if os.path.exists(concat_list):
+            os.remove(concat_list)
+        if os.path.exists(concat_output) and video_with_captions != concat_output:
+            os.remove(concat_output)
 
         return {
             "output": output_path,
             "duration": timeline.get("duration", 0),
             "events_rendered": len(events),
             "preview": preview,
+            "caption_template": caption_template,
         }
 
     def _trim_clip(
@@ -82,7 +102,7 @@ class FFmpegRenderer:
             "-ss", str(start),
             "-i", input_path,
             "-t", str(end - start),
-            "-c:v", "libx264" if not preview else "libx264",
+            "-c:v", "libx264",
             "-preset", "ultrafast" if preview else "medium",
             "-crf", "28" if preview else "23",
             "-an",
@@ -99,6 +119,37 @@ class FFmpegRenderer:
             "-safe", "0",
             "-i", concat_list,
             "-c", "copy",
+            output_path,
+        ]
+        return self._run_command(cmd)
+
+    def _apply_captions(
+        self,
+        input_path: str,
+        events: List[Dict],
+        output_path: str,
+        template_id: str,
+        fontsize_override: Optional[int] = None,
+        fontcolor_override: Optional[str] = None,
+    ) -> Dict:
+        caption_chain = build_caption_filter_chain(
+            events, template_id, fontsize_override, fontcolor_override,
+        )
+
+        if not caption_chain:
+            return {"success": True}
+
+        vf = f"scale=1920:1080:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,{caption_chain}"
+
+        cmd = [
+            self.ffmpeg_path, "-y",
+            "-i", input_path,
+            "-c:v", "libx264",
+            "-preset", "medium",
+            "-crf", "23",
+            "-an",
+            "-vf", vf,
+            "-r", "30",
             output_path,
         ]
         return self._run_command(cmd)

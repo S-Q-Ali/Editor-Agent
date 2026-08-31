@@ -96,24 +96,38 @@ class ClipAnalyzer:
         caption_segments: bool = True,
         segment_interval: float = 2.0,
         clip_embeddings: bool = True,
+        ordered_filenames: Optional[List[str]] = None,
     ) -> List[Dict]:
         clips_path = Path(clips_dir)
         if not clips_path.exists():
             raise FileNotFoundError(f"Clips directory not found: {clips_dir}")
 
+        if ordered_filenames is not None:
+            video_files = []
+            for fn in ordered_filenames:
+                p = clips_path / fn
+                if p.exists() and p.suffix.lower() in self.supported_formats:
+                    video_files.append(p)
+                else:
+                    logger.warning("Ordered clip not found or unsupported: %s", fn)
+        else:
+            video_files = []
+            for ext in self.supported_formats:
+                video_files.extend(clips_path.glob(f"*{ext}"))
+
         clips = []
-        for ext in self.supported_formats:
-            for video_file in clips_path.glob(f"*{ext}"):
-                try:
-                    analysis = self.analyze_clip(
-                        str(video_file),
-                        caption_segments=caption_segments,
-                        segment_interval=segment_interval,
-                        clip_embeddings=clip_embeddings,
-                    )
-                    clips.append(analysis)
-                except Exception as e:
-                    print(f"Failed to analyze {video_file}: {e}")
+        for idx, video_file in enumerate(video_files):
+            try:
+                analysis = self.analyze_clip(
+                    str(video_file),
+                    caption_segments=caption_segments,
+                    segment_interval=segment_interval,
+                    clip_embeddings=clip_embeddings,
+                )
+                analysis["order"] = idx
+                clips.append(analysis)
+            except Exception as e:
+                logger.warning("Failed to analyze %s: %s", video_file, e)
 
         return clips
 

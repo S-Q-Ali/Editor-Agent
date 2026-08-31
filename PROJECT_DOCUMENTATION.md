@@ -359,6 +359,31 @@ render:
 - Dependent on local hardware for AI model performance
 - FFmpeg processing time scales with project complexity
 
+## 28. Timeline Modes
+
+### AUTO Mode
+Agent uses CLIP visual matching to select the best clip for each lyric line. Clips are matched against whole-clip visual embeddings (85% CLIP, 10% semantic, 5% text). Fallback chain: clip_match → best_available → hard_fallback (round-robin).
+
+### SEQUENTIAL Mode
+User uploads clips in numbered order (e.g., `01_wake_up.mp4`, `02_brush.mp4`). Agent uses clips in that exact sequence. Features:
+- **Lyric grouping**: Consecutive short lyrics merged into 2-4s phrases
+- **Source range tracking**: Different source ranges used per clip reuse (e.g., 0-3s, 3-6s, 6-9s)
+- **Minimum duration**: 2.0 seconds per event (prevents rapid scene changes)
+- **Full song coverage**: Tail-filling loop covers entire song duration
+- **Manual overrides**: User can edit source ranges per event after generation
+
+### Manual Overrides (Both Modes)
+After timeline generation, user can adjust `source_start`/`source_end` per event via PATCH endpoint or EventDetail panel.
+
+## 29. Lyric Grouping Algorithm
+
+Groups consecutive short lyrics into phrases:
+- Merge if gap between lyrics ≤ 0.5s
+- Merge if combined duration ≤ 4.0s
+- Merge if either lyric is shorter than min duration (2.0s)
+- Stop merging at section boundaries (verse → chorus)
+- Assign durations proportional to fill total song duration
+
 ## Development Phases
 
 | Phase | Description |
@@ -375,8 +400,9 @@ render:
 | 9 | Preview + QC |
 | 10 | Review UI |
 | 11 | Natural-language revisions |
-| 12 | Optimization |
-| 13 | Desktop packaging |
+| 12 | Sequential mode (clip ordering, lyric grouping) |
+| 13 | Optimization |
+| 14 | Desktop packaging |
 
 ## Final Product Workflow
 
@@ -385,15 +411,22 @@ CREATE PROJECT
        ↓
 Upload Song → Paste Lyrics → Upload AI Clips
        ↓
+SELECT MODE (Auto / Sequential)
+       ↓
+[Sequential] → Order Clips (auto-detect numeric prefixes)
+       ↓
 GENERATE
        ↓
 Music Analysis → Lyrics Alignment → Clip Analysis
        ↓
-Semantic Matching → Timeline Planning → Smart Trimming
+[Auto] CLIP Matching → Timeline Planning
+[Sequential] Ordered Clips → Lyric Grouping → Source Range Selection
        ↓
-Audio Removal → Beat/Lyric Sync
+Smart Trimming → Audio Removal → Beat/Lyric Sync
        ↓
 Preview Render → QC → USER REVIEW
+       ↓
+Manual Range Overrides (optional)
        ↓
 Natural-Language Revision if needed
        ↓

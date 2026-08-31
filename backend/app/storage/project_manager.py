@@ -30,6 +30,8 @@ class ProjectManager:
             "music_file": None,
             "lyrics_file": None,
             "clips": [],
+            "clip_order_file": None,
+            "timeline_mode": "auto",
             "analysis_complete": False,
             "timeline_ready": False,
             "preview_ready": False,

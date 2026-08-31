@@ -1,9 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from typing import Optional
 from pathlib import Path
 import json
 from app.rendering.ffmpeg_renderer import FFmpegRenderer
+from app.rendering.caption_templates import get_available_templates
 
 router = APIRouter(prefix="/api/render", tags=["rendering"])
 renderer = FFmpegRenderer()
@@ -11,6 +13,9 @@ renderer = FFmpegRenderer()
 
 class RenderRequest(BaseModel):
     preview: bool = True
+    caption_template: str = "none"
+    caption_fontsize: Optional[int] = None
+    caption_fontcolor: Optional[str] = None
 
 
 @router.post("/{project_path:path}")
@@ -46,6 +51,9 @@ async def render_video(project_path: str, data: RenderRequest):
         audio_path=str(audio_files[0]),
         output_path=str(output_file),
         preview=data.preview,
+        caption_template=data.caption_template,
+        caption_fontsize=data.caption_fontsize,
+        caption_fontcolor=data.caption_fontcolor,
     )
 
     if result.get("error"):
@@ -91,3 +99,8 @@ async def download_render(project_path: str):
         filename="final.mp4",
         media_type="video/mp4",
     )
+
+
+@router.get("/captions/templates")
+async def list_caption_templates():
+    return {"templates": get_available_templates()}

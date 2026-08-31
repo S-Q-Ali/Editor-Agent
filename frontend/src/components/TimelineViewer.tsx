@@ -9,6 +9,15 @@ interface Props {
   selectedEvent: TimelineEvent | null
 }
 
+const methodColors: Record<string, string> = {
+  sequential: 'bg-blue-500 border-blue-400',
+  clip_match: 'bg-green-600 border-green-400',
+  best_available: 'bg-yellow-600 border-yellow-400',
+  hard_fallback: 'bg-red-600 border-red-400',
+  manual_override: 'bg-purple-600 border-purple-400',
+  extend_fallback: 'bg-orange-600 border-orange-400',
+}
+
 function TimelineViewer({ events, duration, currentTime, onSelect, selectedEvent }: Props) {
   const [zoom, setZoom] = useState(1)
 
@@ -20,6 +29,12 @@ function TimelineViewer({ events, duration, currentTime, onSelect, selectedEvent
   }
 
   const pixelsPerSecond = 50 * zoom
+
+  const modeCounts = events.reduce((acc, e) => {
+    const m = e.selection_method || 'unknown'
+    acc[m] = (acc[m] || 0) + 1
+    return acc
+  }, {} as Record<string, number>)
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-800 p-4">
@@ -48,6 +63,15 @@ function TimelineViewer({ events, duration, currentTime, onSelect, selectedEvent
         <span>Current: {formatTime(currentTime)}</span>
       </div>
 
+      <div className="mb-3 flex flex-wrap gap-3 text-xs">
+        {Object.entries(modeCounts).map(([method, count]) => (
+          <div key={method} className="flex items-center gap-1.5">
+            <span className={`inline-block w-2.5 h-2.5 rounded-sm ${methodColors[method]?.split(' ')[0] || 'bg-slate-500'}`} />
+            <span className="text-slate-400">{method}: {count}</span>
+          </div>
+        ))}
+      </div>
+
       <div className="relative overflow-x-auto border border-slate-600 rounded bg-slate-900">
         <div
           className="relative h-32"
@@ -73,6 +97,7 @@ function TimelineViewer({ events, duration, currentTime, onSelect, selectedEvent
               const width = (event.timeline_end - event.timeline_start) * pixelsPerSecond
               const isSelected = selectedEvent?.clip_id === event.clip_id &&
                                  selectedEvent?.timeline_start === event.timeline_start
+              const colorClass = methodColors[event.selection_method] || 'bg-slate-600 border-slate-500'
 
               return (
                 <div
@@ -80,15 +105,20 @@ function TimelineViewer({ events, duration, currentTime, onSelect, selectedEvent
                   onClick={() => onSelect(event)}
                   className={`absolute top-0 h-full rounded cursor-pointer border transition-colors ${
                     isSelected
-                      ? 'bg-blue-600 border-blue-400'
-                      : 'bg-slate-600 border-slate-500 hover:bg-slate-500'
+                      ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900 ' + colorClass
+                      : colorClass + ' hover:opacity-80'
                   }`}
                   style={{ left: `${left}px`, width: `${Math.max(width, 4)}px` }}
-                  title={`${event.clip_id}: ${event.lyric_text}`}
+                  title={`${event.clip_id}: ${event.lyric_text} [${event.selection_method}]${event.clip_caption ? ` — "${event.clip_caption}"` : ''}`}
                 >
-                  {width > 60 && (
-                    <div className="px-1 py-0.5 text-xs truncate">
-                      {event.clip_id}
+                  {width > 80 && (
+                    <div className="px-1 py-0.5 text-xs truncate text-white/90">
+                      {i + 1}. {event.lyric_text || event.clip_id}
+                    </div>
+                  )}
+                  {width > 40 && width <= 80 && (
+                    <div className="px-1 py-0.5 text-[10px] truncate text-white/70">
+                      {i + 1}
                     </div>
                   )}
                 </div>

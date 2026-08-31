@@ -46,6 +46,14 @@ def get_default_config() -> Dict[str, Any]:
             "max_repetition_score": 0.8,
             "min_confidence_threshold": 0.5,
         },
+        "captions": {
+            "default_template": "subtitle",
+            "font_path": "C:/Windows/Fonts/calibri.ttf",
+            "available_templates": [
+                "none", "subtitle", "karaoke", "kids_bubble",
+                "minimal", "bold_center", "colorful",
+            ],
+        },
     }
 
 

@@ -1,13 +1,13 @@
 # SESSION STATE
 
 ## Current Phase
-Phase 9 — Review UI Complete
+Phase 10 — Intelligent Pipeline (Sequential Mode)
 
 ## Current Objective
-All core phases implemented. Ready for dependency installation and testing.
+Sequential mode implemented. Ready for testing.
 
 ## Overall Progress
-90%
+95%
 
 ## Completed
 - Phase 0: Project structure, documentation, configuration
@@ -20,10 +20,13 @@ All core phases implemented. Ready for dependency installation and testing.
 - Phase 7: FFmpeg renderer (trim, scale, concat, audio replacement)
 - Phase 8: Quality control (timeline validation, render QC)
 - Phase 9: Review UI (timeline viewer, video player, revision, approval)
+- Phase 9.5: Project deletion + download features
+- Phase 9.6: Whole-clip CLIP matching overhaul
+- Phase 10: Sequential mode (clip ordering, lyric grouping, source range tracking)
 
 ## In Progress
-- Installing dependencies
-- Running tests
+- Testing sequential mode
+- Dependency installation
 
 ## Blocked
 None
@@ -42,6 +45,11 @@ None
 - Sentence-transformers for embeddings (with fallback)
 - Editing brain uses deterministic rules + semantic matching
 - Natural-language revision supports multiple languages
+- Two-mode timeline: AUTO (CLIP matching) + SEQUENTIAL (user-ordered clips)
+- Minimum event duration: 2.0 seconds
+- Lyric grouping: merges consecutive short lyrics into 2-4s phrases
+- max_repetition increased to 4 (from 2)
+- Full song coverage via tail-filling
 
 ## Files Created/Modified
 Backend (13 API routers):
@@ -59,13 +67,14 @@ Backend (13 API routers):
 - backend/app/storage/project_manager.py
 - backend/app/utils/config.py, logging.py
 
-Frontend (11 components/pages):
+Frontend (12 components/pages):
 - frontend/src/App.tsx, main.tsx, index.css
 - frontend/src/pages/Dashboard.tsx, ProjectPage.tsx, ReviewPage.tsx
 - frontend/src/components/ProjectCard.tsx, CreateProjectModal.tsx
 - frontend/src/components/TimelineViewer.tsx, VideoPlayer.tsx
 - frontend/src/components/EventDetail.tsx, RevisionInput.tsx
 - frontend/src/components/QCDisplay.tsx, ApprovalGate.tsx
+- frontend/src/components/ClipOrderPanel.tsx (NEW)
 - frontend/src/services/api.ts, stores/appStore.ts, types/index.ts
 
 Documentation:
@@ -84,13 +93,17 @@ Documentation:
 - 60f36d7: Phase 8 - Quality control
 - 2517c42: Session state update
 - 685bd09: Phase 9 - Review UI
+- e3c883a: Fix .gitignore
+- 1529cc7: Project deletion + download features
+- d19681d: Whole-clip CLIP matching overhaul
 
 ## Next Steps
-1. Install backend dependencies: cd backend && pip install -r requirements.txt
-2. Install frontend dependencies: cd frontend && npm install
-3. Run backend: cd backend && python -m uvicorn app.main:app --reload
-4. Run frontend: cd frontend && npm run dev
-5. Test full pipeline with sample media
+1. Test sequential mode with sample clips
+2. Verify lyric grouping produces 2-4s phrases
+3. Verify full song coverage (no gaps)
+4. Test manual range overrides via PATCH endpoint
+5. Test clip ordering UI (auto-sort, manual reorder)
+6. Commit changes
 
 ## Last Updated
-2026-08-30
+2026-08-31

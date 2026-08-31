@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
 from pathlib import Path
 import json
 from app.agents.editor_brain import EditingBrain
@@ -7,8 +9,18 @@ router = APIRouter(prefix="/api/timeline", tags=["timeline"])
 brain = EditingBrain()
 
 
+class TimelineGenerateRequest(BaseModel):
+    mode: str = "auto"
+
+
+class EventPatch(BaseModel):
+    source_start: Optional[float] = None
+    source_end: Optional[float] = None
+    clip_id: Optional[str] = None
+
+
 @router.post("/{project_path:path}/generate")
-async def generate_timeline(project_path: str):
+async def generate_timeline(project_path: str, data: TimelineGenerateRequest = TimelineGenerateRequest()):
     project_dir = Path(project_path)
     analysis_dir = project_dir / "analysis"
     timeline_dir = project_dir / "timeline"
@@ -48,27 +60,35 @@ async def generate_timeline(project_path: str):
         search_engine = SemanticSearch()
         enriched_clips = embeddings_data.get("clips", [])
 
-        # Whole-clip CLIP matching (primary — highest quality)
         clip_level_matches = search_engine.search_clips_for_lyrics(
             lyrics_alignment.get("lines", []),
             enriched_clips,
         )
 
-        # Segment-level matching (fallback)
         segment_matches = search_engine.search_segments_for_lyrics(
             lyrics_alignment.get("lines", []),
             enriched_clips,
             video_dir=video_dir,
         )
 
-        # Legacy semantic text matching (last resort)
         lyrics_matches = search_engine.search_for_lyrics(
             lyrics_alignment.get("lines", []),
             enriched_clips,
         )
 
+    clip_order = None
+    if data.mode == "sequential":
+        order_file = analysis_dir / "clip_order.json"
+        if order_file.exists():
+            with open(order_file, "r") as f:
+                clip_order = json.load(f).get("clips", [])
+        else:
+            data.mode = "auto"
+
     timeline = brain.generate_timeline(
-        music_analysis, lyrics_alignment, clips, lyrics_matches, segment_matches, clip_level_matches
+        music_analysis, lyrics_alignment, clips, lyrics_matches,
+        segment_matches, clip_level_matches,
+        mode=data.mode, clip_order=clip_order,
     )
 
     validation = brain.validate_timeline(timeline)
@@ -89,6 +109,36 @@ async def get_timeline(project_path: str):
 
     with open(timeline_file, "r") as f:
         return json.load(f)
+
+
+@router.patch("/{project_path:path}/events/{event_index:int}")
+async def patch_event(project_path: str, event_index: int, patch: EventPatch):
+    timeline_file = Path(project_path) / "timeline" / "timeline.json"
+    if not timeline_file.exists():
+        raise HTTPException(status_code=404, detail="Timeline not found")
+
+    with open(timeline_file, "r") as f:
+        timeline = json.load(f)
+
+    events = timeline.get("tracks", {}).get("video", [])
+    if event_index < 0 or event_index >= len(events):
+        raise HTTPException(status_code=404, detail=f"Event index {event_index} out of range")
+
+    event = events[event_index]
+
+    if patch.source_start is not None:
+        event["source_start"] = round(patch.source_start, 3)
+    if patch.source_end is not None:
+        event["source_end"] = round(patch.source_end, 3)
+    if patch.clip_id is not None:
+        event["clip_id"] = patch.clip_id
+
+    event["selection_method"] = "manual_override"
+
+    with open(timeline_file, "w") as f:
+        json.dump(timeline, f, indent=2)
+
+    return {"status": "ok", "event": event}
 
 
 @router.post("/{project_path:path}/validate")
