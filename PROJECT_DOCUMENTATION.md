@@ -215,12 +215,15 @@ Decisions include:
 
 ```json
 {
-  "version": 1,
+  "version": 2,
+  "mode": "auto",
   "duration": 161.4,
+  "total_events": 46,
   "tracks": {
     "video": [],
     "audio": []
-  }
+  },
+  "metadata": {}
 }
 ```
 
@@ -228,6 +231,13 @@ Each video event:
 - clip_id, source_start, source_end
 - timeline_start, timeline_end
 - transition, reason, confidence
+- lyric_text, selection_method, clip_caption
+
+Invariants (enforced by editing brain + QC):
+- Events cover the full song with no gaps or overlaps
+- `source_end - source_start == timeline_end - timeline_start` (exact A/V sync)
+- Source ranges never exceed the actual clip duration
+- Event boundaries anchored at lyric timestamps (lyric events)
 
 ## 15. FFmpeg Rendering
 
@@ -261,10 +271,11 @@ Natural-language revision agent:
 
 Automated QC checks:
 - Duration validation, audio presence
-- Original clip audio leakage
-- Black/frozen frame detection
+- Rendered file duration vs music/timeline duration (catches silent truncation)
+- Per-event source duration vs timeline duration match (catches A/V drift)
 - Timeline gaps/overlaps
 - Invalid timestamps
+- Minimum event duration policy (2.0s guideline, 1.0s hard floor)
 - Resolution/FPS/encoding validation
 - Excessive repetition detection
 - Low-confidence selection warnings
@@ -358,31 +369,51 @@ render:
 - Requires pre-generated AI video clips
 - Dependent on local hardware for AI model performance
 - FFmpeg processing time scales with project complexity
+- Transitions: cuts render natively; "fade" is metadata for intro/outro (no xfade blending yet)
+- Crossfade/dissolve transitions are stored in the schema but not rendered
+- Caption apostrophes are rendered as typographic apostrophes (U+2019)
+- CLIP whole-clip match scores typically land in the 0.15-0.3 range; low-confidence QC warnings are informational, not failures
+- Events may drop below the 2.0s guideline (floor 1.0s) when lyric phrase anchors collide — sync always wins
 
 ## 28. Timeline Modes
 
-### AUTO Mode
-Agent uses CLIP visual matching to select the best clip for each lyric line. Clips are matched against whole-clip visual embeddings (85% CLIP, 10% semantic, 5% text). Fallback chain: clip_match → best_available → hard_fallback (round-robin).
+### AUTO Mode (lyric-anchored, two-stage matching)
+Events are anchored at the REAL sung timestamp of every lyric phrase — visuals land on the words as they are sung.
+
+**Stage 1 — clip selection per repetition group:**
+Lyrics are normalized and grouped (`"good morning"` ×16 = one group). Each group gets a primary clip plus alternates from whole-clip CLIP matching (85% CLIP visual, 10% semantic, 5% text). Repeated lyrics reuse the same clip family → consistent visual motif per hook.
+
+**Stage 2 — source-window selection ("trim from anywhere"):**
+Within the chosen clip, the best window for the exact needed duration is selected by scoring: window freshness (no overlap with already-used windows of that clip), motion/quality of covered `best_segments`, and beat snapping. Repetition is tracked per `(clip_id, source_window)`, not per clip — a 15s clip yields ~4-5 distinct windows. Window reuse is allowed only after a group's pool is exhausted (with a confidence penalty).
+
+**Coverage slots:**
+- Intro slot covers instrumental before the first lyric.
+- Pauses between phrases extend (hold) the previous shot; longer pauses get a music-fill slot with a different clip.
+- Outro slot covers the tail after the last lyric.
+- Slots longer than `max_event_duration` (8s) are split into equal chunks with fresh windows.
+- Overlapping phrase anchors never produce overlapping events (sync wins over duration).
+
+Fallback chain: clip_match → clip_match_low → best_available → window reuse → hard_fallback.
 
 ### SEQUENTIAL Mode
 User uploads clips in numbered order (e.g., `01_wake_up.mp4`, `02_brush.mp4`). Agent uses clips in that exact sequence. Features:
 - **Lyric grouping**: Consecutive short lyrics merged into 2-4s phrases
 - **Source range tracking**: Different source ranges used per clip reuse (e.g., 0-3s, 3-6s, 6-9s)
-- **Minimum duration**: 2.0 seconds per event (prevents rapid scene changes)
-- **Full song coverage**: Tail-filling loop covers entire song duration
+- **Full song coverage**: Tail-filling covers entire song duration
 - **Manual overrides**: User can edit source ranges per event after generation
 
 ### Manual Overrides (Both Modes)
-After timeline generation, user can adjust `source_start`/`source_end` per event via PATCH endpoint or EventDetail panel.
+After timeline generation, user can adjust `source_start`/`source_end` per event via PATCH endpoint or EventDetail panel. The renderer clamps source ranges to actual clip bounds and pads short trims by holding the last frame, so A/V sync can never silently drift.
 
 ## 29. Lyric Grouping Algorithm
 
-Groups consecutive short lyrics into phrases:
+Groups consecutive short lyrics into phrases (both modes):
 - Merge if gap between lyrics ≤ 0.5s
 - Merge if combined duration ≤ 4.0s
 - Merge if either lyric is shorter than min duration (2.0s)
 - Stop merging at section boundaries (verse → chorus)
-- Assign durations proportional to fill total song duration
+- AUTO mode: each phrase is anchored at its real timestamp (never stretched to fill the song); gaps are held on the previous shot or filled with a music slot
+- SEQUENTIAL mode: phrase durations are scaled proportionally to fill total song duration
 
 ## Development Phases
 

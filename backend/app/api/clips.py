@@ -52,6 +52,9 @@ async def analyze_clips(project_path: str, data: ClipAnalysisRequest = ClipAnaly
         )
         analyzer.save_clip_index(clips, str(analysis_dir / "clip_index.json"))
 
+        from app.storage.project_manager import ProjectManager
+        ProjectManager().update_project(project_path, {"analysis_complete": True})
+
         return {
             "total_clips": len(clips),
             "clips": clips,

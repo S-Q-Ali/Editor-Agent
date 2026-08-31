@@ -33,6 +33,9 @@ async def analyze_music(project_path: str):
         with open(analysis_dir / "music_analysis.json", "w") as f:
             json.dump(result, f, indent=2)
 
+        from app.storage.project_manager import ProjectManager
+        ProjectManager().update_project(project_path, {"music_file": audio_files[0].name})
+
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

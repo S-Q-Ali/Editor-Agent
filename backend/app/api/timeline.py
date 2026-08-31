@@ -98,6 +98,13 @@ async def generate_timeline(project_path: str, data: TimelineGenerateRequest = T
     with open(timeline_dir / "timeline.json", "w") as f:
         json.dump(timeline, f, indent=2)
 
+    from app.storage.project_manager import ProjectManager
+    ProjectManager().update_project(project_path, {
+        "timeline_ready": bool(validation.get("valid", False)),
+        "timeline_mode": data.mode,
+        "status": "timeline_ready",
+    })
+
     return timeline
 
 

@@ -33,6 +33,8 @@ async def upload_music(project_path: str, file: UploadFile = File(...)):
     with open(file_path, "wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
 
+    ProjectManager().update_project(project_path, {"music_file": file.filename})
+
     return {"filename": file.filename, "path": str(file_path), "size": file_path.stat().st_size}
 
 
@@ -49,6 +51,8 @@ async def upload_lyrics(project_path: str, file: UploadFile = File(...)):
     content = await file.read()
     with open(file_path, "wb") as buffer:
         buffer.write(content)
+
+    ProjectManager().update_project(project_path, {"lyrics_file": file.filename})
 
     return {"filename": file.filename, "path": str(file_path), "size": len(content)}
 

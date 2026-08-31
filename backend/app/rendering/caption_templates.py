@@ -119,14 +119,15 @@ def get_available_templates() -> List[Dict]:
 
 
 def escape_ffmpeg_text(text: str) -> str:
-    text = text.replace("\\", "\\\\\\\\")
-    text = text.replace("'", "'\\\\\\''")
-    text = text.replace(":", "\\:")
-    text = text.replace("%", "%%")
-    text = text.replace("[", "\\[")
-    text = text.replace("]", "\\]")
-    text = text.replace(";", "\\;")
-    return text
+    """Escape text for use inside a single-quoted drawtext value.
+
+    Within an ffmpeg single-quoted string every character is literal except
+    the apostrophe, which cannot appear at all. Apostrophes in lyrics are
+    replaced with the typographic apostrophe (U+2019), which renders
+    identically and requires no escaping.
+    """
+    text = (text or "").replace("\n", " ").replace("\r", " ")
+    return text.replace("'", "\u2019")
 
 
 def get_section_color(section_label: str) -> str:
@@ -192,7 +193,7 @@ def build_drawtext_filter(
     parts.append(f"y={y}")
     parts.append(f"enable='between(t\\,{start_time:.3f}\\,{end_time:.3f})'")
 
-    return ",".join(parts)
+    return ":".join(parts)
 
 
 def build_caption_filter_chain(

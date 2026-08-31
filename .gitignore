@@ -61,6 +61,7 @@ backend/projects/*/timeline/*
 backend/projects/*/previews/*
 backend/projects/*/renders/*
 backend/projects/*/logs/*
+backend/projects/*/project.json
 !backend/projects/**/.gitkeep
 
 # Temporary files

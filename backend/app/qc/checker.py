@@ -20,18 +20,20 @@ class QualityChecker:
             "checks": [],
         }
 
+        expected_duration = 0.0
         if timeline_file.exists():
             with open(timeline_file, "r") as f:
                 timeline = json.load(f)
+            expected_duration = timeline.get("duration", 0)
             self._check_timeline(timeline, results)
 
         preview_file = renders_dir / "preview.mp4"
         if preview_file.exists():
-            self._check_render(str(preview_file), results)
+            self._check_render(str(preview_file), results, expected_duration)
 
         final_file = renders_dir / "final.mp4"
         if final_file.exists():
-            self._check_render(str(final_file), results)
+            self._check_render(str(final_file), results, expected_duration)
 
         results["score"] = max(0, 100 - len(results["errors"]) * 10 - len(results["warnings"]) * 2)
 
@@ -67,6 +69,8 @@ class QualityChecker:
         self._check_gaps(events, results)
         self._check_overlaps(events, results)
         self._check_timestamps(events, results)
+        self._check_event_durations(events, results)
+        self._check_min_event_duration(events, results)
         self._check_confidence(events, results)
         self._check_repetition(events, results)
 
@@ -114,6 +118,32 @@ class QualityChecker:
 
         results["checks"].append({"name": "timestamps", "passed": True})
 
+    def _check_event_durations(self, events: List[Dict], results: Dict):
+        """Every event's source range must match its timeline duration.
+        A mismatch makes the concat renderer drift out of A/V sync."""
+        mismatches = 0
+        for i, event in enumerate(events):
+            src_dur = event["source_end"] - event["source_start"]
+            tl_dur = event["timeline_end"] - event["timeline_start"]
+            if abs(src_dur - tl_dur) > 0.25:
+                mismatches += 1
+                results["errors"].append(
+                    f"Event {i}: source duration {src_dur:.2f}s != timeline duration {tl_dur:.2f}s"
+                )
+        results["checks"].append({"name": "event_durations", "passed": mismatches == 0})
+
+    def _check_min_event_duration(self, events: List[Dict], results: Dict,
+                                  min_duration: float = 2.0):
+        """Events under 1s cause strobe-cutting; under 2s is discouraged."""
+        too_short = sum(
+            1 for e in events if (e["timeline_end"] - e["timeline_start"]) < min_duration
+        )
+        if too_short:
+            results["warnings"].append(
+                f"{too_short} events shorter than {min_duration}s (min duration policy)"
+            )
+        results["checks"].append({"name": "min_event_duration", "passed": too_short == 0})
+
     def _check_confidence(self, events: List[Dict], results: Dict):
         low_confidence = [e for e in events if e.get("confidence", 0) < 0.3]
         if low_confidence:
@@ -133,7 +163,8 @@ class QualityChecker:
 
         results["checks"].append({"name": "repetition", "passed": True})
 
-    def _check_render(self, video_path: str, results: Dict):
+    def _check_render(self, video_path: str, results: Dict,
+                      expected_duration: float = 0.0):
         cmd = [
             "ffprobe", "-v", "quiet",
             "-print_format", "json",
@@ -173,6 +204,19 @@ class QualityChecker:
                 if sample_rate < 44100:
                     results["warnings"].append(f"Low audio sample rate: {sample_rate}Hz")
 
+            # Rendered duration must match the music/timeline duration,
+            # otherwise the video silently truncates or drifts out of sync.
+            render_duration = float(data.get("format", {}).get("duration", 0) or 0)
+            if expected_duration > 0 and render_duration > 0:
+                if abs(render_duration - expected_duration) > 1.0:
+                    results["errors"].append(
+                        f"Render duration {render_duration:.2f}s doesn't match "
+                        f"expected {expected_duration:.2f}s"
+                    )
+                    results["checks"].append({"name": "render_duration", "passed": False})
+                    return
+
+            results["checks"].append({"name": "render_duration", "passed": True})
             results["checks"].append({"name": "render_quality", "passed": True})
 
         except Exception as e:

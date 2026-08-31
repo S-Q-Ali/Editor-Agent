@@ -1,109 +1,86 @@
 # SESSION STATE
 
 ## Current Phase
-Phase 10 — Intelligent Pipeline (Sequential Mode)
+Phase 11 — Pipeline Correctness & Production Hardening (complete)
 
 ## Current Objective
-Sequential mode implemented. Ready for testing.
+Full pipeline verified end-to-end on project TT_8f1cd796: lyric-synced, full-length, QC-clean preview render.
 
 ## Overall Progress
-95%
+97%
 
 ## Completed
-- Phase 0: Project structure, documentation, configuration
-- Phase 1: Backend/frontend foundation, upload API, job status
-- Phase 2: Music analyzer (librosa, BPM/beat/section detection)
-- Phase 3: Lyrics engine (parsing, alignment, whisper integration)
-- Phase 4: Clip intelligence (OpenCV analysis, motion/quality)
-- Phase 5: Semantic search (embeddings, cosine similarity)
-- Phase 6: Editing brain (timeline generation, clip selection)
-- Phase 7: FFmpeg renderer (trim, scale, concat, audio replacement)
-- Phase 8: Quality control (timeline validation, render QC)
-- Phase 9: Review UI (timeline viewer, video player, revision, approval)
-- Phase 9.5: Project deletion + download features
-- Phase 9.6: Whole-clip CLIP matching overhaul
-- Phase 10: Sequential mode (clip ordering, lyric grouping, source range tracking)
+- Phases 0-10 complete (see git history: ab669a8..480421f)
+- Phase 11: Pipeline correctness overhaul (2026-08-31, details below)
+
+## Phase 11 Work Completed (2026-08-31)
+### Root-cause analysis of TT_8f1cd796 preview (old preview was 117.57s vs 156.12s song)
+- Tail-fill bug: last event claimed 53.94s from a 15.09s clip → renderer silently dropped 38.55s
+- Lyric desync: AUTO mode stacked events back-to-back from 0s, ignoring lyric timestamps (drift up to ~45s)
+- Strobe cutting: 88/97 events under 2s (min 0.14s); min-duration/grouping only existed in sequential mode
+- QC blind spots: never compared render duration vs music, nor per-event source vs timeline duration
+- Caption bug: drawtext options joined with ',' (filter separator) instead of ':' — captions never actually rendered
+- Stale project state: upload/analysis/timeline/render endpoints never updated project.json
+
+### Fixes implemented
+- editor_brain.py: complete AUTO mode rewrite — lyric-anchored slots (real timestamps), intro/music-fill/outro
+  slots, gap holding, max-event chunking (8s), overlap prevention, repetition groups (normalized text) with
+  primary+alternate clips, two-stage matching with source-window pool (trim-from-anywhere: freshness +
+  motion/quality + beat snapping), repetition tracked per (clip, window), deterministic transitions (random
+  removed), confidence_threshold 0.15
+- ffmpeg_renderer.py: deterministic exact-stem clip resolution, clip duration probing + source clamping,
+  last-frame tpad padding for short source ranges, per-segment duration verification, scaled timeouts,
+  final duration verification, warnings in result
+- caption_templates.py: fixed drawtext option separator (':'), safe text escaping (apostrophes → U+2019)
+- checker.py: new checks — render duration vs expected, per-event source/timeline match, min event duration
+- API state updates: upload (music/lyrics), analysis (analysis_complete), timeline (timeline_ready/mode),
+  render (preview_ready/status) now persist to project.json
+- tests/test_timeline_sync.py: 11 regression tests (coverage, min duration, source/timeline match, clip
+  bounds, lyric anchoring, intro/outro, overlaps, clip overuse, determinism, validation, renderer e2e)
+- tests/test_main.py: fixed /health → /api/health route mismatch
+
+### Verification results (TT_8f1cd796)
+- New timeline: 46 events, 0 gaps, 0 overlaps, 0 source overruns, 0 src/tl mismatches, deterministic
+- 37/43 lyric phrases CLIP-matched (clip_match), 6 best_available, 3 filler (intro/music/outro)
+- New preview.mp4: 156.117s == music duration (was 117.57s), 1920x1080/30fps H.264+AAC, karaoke captions
+- QC score 94, zero errors (only informational warnings: low CLIP confidence ~0.22 avg, expected repetition)
 
 ## In Progress
-- Testing sequential mode
-- Dependency installation
+None
 
 ## Blocked
 None
 
 ## Decisions Made
-- Local-first architecture
-- React frontend (TypeScript + Vite + Tailwind CSS)
-- Python/FastAPI backend
-- FFmpeg as deterministic renderer
-- Timeline represented as structured JSON
-- Human approval required before final render
-- Model-agnostic AI layer
-- Hardware abstraction for model selection
-- Librosa for audio analysis (with FFprobe fallback)
-- OpenCV for video frame analysis
-- Sentence-transformers for embeddings (with fallback)
-- Editing brain uses deterministic rules + semantic matching
-- Natural-language revision supports multiple languages
-- Two-mode timeline: AUTO (CLIP matching) + SEQUENTIAL (user-ordered clips)
-- Minimum event duration: 2.0 seconds
-- Lyric grouping: merges consecutive short lyrics into 2-4s phrases
-- max_repetition increased to 4 (from 2)
-- Full song coverage via tail-filling
+- Local-first architecture; React frontend; Python/FastAPI backend; FFmpeg deterministic renderer
+- Timeline as structured JSON (schema v2); human approval before final render; model-agnostic AI layer
+- Lyric sync anchor wins over minimum event duration: 2.0s guideline, 1.0s hard floor
+- Repetition unit is (clip_id, source_window), not clip; max_clip_usage safety cap = 8
+- Deterministic pipeline: no randomness anywhere in timeline generation
+- CLIP confidence_threshold 0.15 (whole-clip scores typically 0.15-0.3)
+- Renderer never silently truncates: clamps source ranges, pads with held last frame, verifies durations
 
-## Files Created/Modified
-Backend (13 API routers):
-- backend/app/main.py
-- backend/app/api/projects.py, health.py, upload.py, jobs.py
-- backend/app/api/analysis.py, lyrics.py, clips.py, search.py
-- backend/app/api/timeline.py, render.py, qc.py, revision.py
-- backend/app/audio/analyzer.py
-- backend/app/lyrics/engine.py
-- backend/app/video/clip_analyzer.py
-- backend/app/embeddings/semantic_search.py
-- backend/app/agents/editor_brain.py
-- backend/app/rendering/ffmpeg_renderer.py
-- backend/app/qc/checker.py
-- backend/app/storage/project_manager.py
-- backend/app/utils/config.py, logging.py
-
-Frontend (12 components/pages):
-- frontend/src/App.tsx, main.tsx, index.css
-- frontend/src/pages/Dashboard.tsx, ProjectPage.tsx, ReviewPage.tsx
-- frontend/src/components/ProjectCard.tsx, CreateProjectModal.tsx
-- frontend/src/components/TimelineViewer.tsx, VideoPlayer.tsx
-- frontend/src/components/EventDetail.tsx, RevisionInput.tsx
-- frontend/src/components/QCDisplay.tsx, ApprovalGate.tsx
-- frontend/src/components/ClipOrderPanel.tsx (NEW)
-- frontend/src/services/api.ts, stores/appStore.ts, types/index.ts
-
-Documentation:
-- AGENTS.md, PROJECT_DOCUMENTATION.md, SESSION_STATE.md
-- .gitignore, .env.example, config/settings.yaml
+## Files Modified (Phase 11)
+- backend/app/agents/editor_brain.py (AUTO mode rewrite)
+- backend/app/rendering/ffmpeg_renderer.py (robustness)
+- backend/app/rendering/caption_templates.py (drawtext fix)
+- backend/app/qc/checker.py (3 new checks)
+- backend/app/api/upload.py, analysis.py, clips.py, timeline.py, render.py (state persistence)
+- backend/tests/test_timeline_sync.py (NEW, 11 tests), backend/tests/test_main.py (route fix)
+- PROJECT_DOCUMENTATION.md, SESSION_STATE.md
 
 ## Git Commits
-- ab669a8: Phase 0 - Foundation
-- 38253bb: Phase 1 - Backend/frontend foundation
-- 61497f2: Phase 2 - Music analyzer
-- ca7426a: Phase 3 - Lyrics engine
-- 9140518: Phase 4 - Clip intelligence
-- 39453ac: Phase 5 - Semantic search
-- cec0497: Phase 6 - Editing brain
-- a3fa113: Phase 7 - FFmpeg renderer
-- 60f36d7: Phase 8 - Quality control
-- 2517c42: Session state update
-- 685bd09: Phase 9 - Review UI
-- e3c883a: Fix .gitignore
-- 1529cc7: Project deletion + download features
-- d19681d: Whole-clip CLIP matching overhaul
+- ab669a8..480421f: Phases 0-10
+- (this session) Phase 11 — pipeline correctness, lyric-anchored auto mode, QC hardening
 
 ## Next Steps
-1. Test sequential mode with sample clips
-2. Verify lyric grouping produces 2-4s phrases
-3. Verify full song coverage (no gaps)
-4. Test manual range overrides via PATCH endpoint
-5. Test clip ordering UI (auto-sort, manual reorder)
-6. Commit changes
+1. Review new preview.mp4 visually; adjust clip-to-lyric groups via PATCH overrides if needed
+2. Implement xfade crossfade/dissolve rendering (transitions currently cut/fade metadata only)
+3. Recalibrate CLIP confidence display in Review UI (scores ~0.2 are normal, not failures)
+4. Regenerate low-quality clip captions (e.g., "the secret in") to improve matching
+5. Consider 720p output option (source clips are 720p; upscaling adds no detail)
+6. Frontend: surface renderer "warnings" and QC "checks" detail in QCDisplay
+7. Desktop packaging (Phase 14)
 
 ## Last Updated
 2026-08-31

@@ -1,9 +1,9 @@
 import json
 import logging
+import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from dataclasses import dataclass, asdict
-import random
 
 logger = logging.getLogger(__name__)
 
@@ -23,13 +23,23 @@ class TimelineEvent:
     clip_caption: str = ""
 
 
+def _normalize_text(text: str) -> str:
+    """Normalize lyric text for repetition grouping."""
+    return re.sub(r"[^a-z0-9 ]+", "", (text or "").lower()).strip()
+
+
 class EditingBrain:
     def __init__(self):
-        self.transitions = ["cut", "fade", "crossfade", "dissolve"]
-        self.max_repetition = 4
-        self.confidence_threshold = 0.10
-        self._fallback_idx = 0
+        # Repetition is now tracked per (clip, source-window), not per clip.
+        # max_clip_usage is a safety cap on how many events a single clip may serve.
+        self.max_clip_usage = 8
+        # Minimum whole-clip match score to treat a match as confident.
+        self.confidence_threshold = 0.15
         self.min_event_duration = 2.0
+        self.max_event_duration = 8.0
+        # Fraction of an event's duration allowed to overlap an already-used
+        # window of the same clip before the window counts as "reused".
+        self.window_overlap_limit = 0.5
 
     def generate_timeline(
         self,
@@ -47,206 +57,416 @@ class EditingBrain:
                 music_analysis, lyrics_alignment, clips, clip_order,
                 clip_matches=clip_matches, segment_matches=segment_matches,
             )
+        return self._generate_auto_timeline(
+            music_analysis, lyrics_alignment, clips, clip_matches, segment_matches
+        )
+
+    # ------------------------------------------------------------------
+    # AUTO mode: lyric-anchored timeline with two-stage matching
+    # Stage 1: repeated lyrics are grouped; each group gets a primary clip
+    #          plus alternates (consistent visual motif per lyric).
+    # Stage 2: within the chosen clip, the best unused source window is
+    #          selected ("trim from anywhere") — segment boundaries,
+    #          quality/motion, beat alignment and window freshness.
+    # ------------------------------------------------------------------
+
+    def _generate_auto_timeline(
+        self,
+        music_analysis: Dict,
+        lyrics_alignment: Dict,
+        clips: List[Dict],
+        clip_matches: Optional[Dict],
+        segment_matches: Optional[Dict],
+    ) -> Dict[str, Any]:
         duration = music_analysis.get("duration", 0)
         beats = music_analysis.get("beats", [])
         sections = music_analysis.get("sections", [])
         lyrics_lines = lyrics_alignment.get("lines", [])
 
+        if not clips or duration <= 0:
+            return self._generate_empty_timeline(duration)
+
         if not lyrics_lines:
             if beats and len(beats) > 1:
                 lyrics_lines = self._generate_beat_grid(beats, duration)
-            elif duration > 0:
-                lyrics_lines = self._generate_segment_grid(duration)
             else:
-                return self._generate_empty_timeline(duration)
+                lyrics_lines = self._generate_segment_grid(duration)
 
-        timeline_events = []
-        used_clips = {}
-        current_time = 0
-        prev_clip = None
-        prev_source_start = 0
-        prev_source_end = 0
+        phrases = self._group_lyrics_into_phrases(lyrics_lines, beats)
+        slots = self._build_lyric_slots(phrases, duration)
+
+        used_windows: Dict[str, List[Tuple[float, float]]] = {}
+        group_candidates: Dict[str, List[Tuple[Dict, float, str]]] = {}
         stats = {
             "clip_match_count": 0,
+            "clip_match_low_count": 0,
             "best_available_count": 0,
-            "segment_match_count": 0,
-            "semantic_match_count": 0,
-            "extend_fallback_count": 0,
-            "hard_fallback_count": 0,
-            "low_confidence_count": 0,
+            "filler_count": 0,
+            "window_reuse_count": 0,
         }
 
-        for line in lyrics_lines:
-            if current_time >= duration:
-                break
+        events: List[Dict] = []
+        prev_clip_id: Optional[str] = None
 
-            line_start = line.get("start", current_time)
-            line_end = line.get("end", line_start + 2.0)
-            line_duration = line_end - line_start
+        for slot in slots:
+            kind = slot["kind"]
+            for chunk_offset, chunk_dur in self._split_chunks(slot["end"] - slot["start"]):
+                tl_start = round(slot["start"] + chunk_offset, 3)
+                tl_end = round(tl_start + chunk_dur, 3)
 
-            if line_duration <= 0:
-                line_duration = 2.0
-
-            clip_result = None
-            selection_method = ""
-
-            # Priority 1: CLIP-level whole-clip matching (best quality)
-            if clip_matches:
-                clip_result = self._select_clip_from_clip_matches(
-                    line, clips, clip_matches, segment_matches, used_clips, line_duration, beats
+                clip, confidence, reason, method = self._select_clip_for_slot(
+                    slot, clips, clip_matches or {}, used_windows,
+                    prev_clip_id, group_candidates, stats,
                 )
-                if clip_result:
-                    selection_method = "clip_match"
-                    stats.setdefault("clip_match_count", 0)
-                    stats["clip_match_count"] += 1
-
-            # Priority 2: Best available clip (no matching, just pick highest quality unused)
-            if not clip_result:
-                clip_result = self._select_best_available_clip(
-                    clips, used_clips, line_duration, beats
+                source_start, source_end, reused = self._pick_window(
+                    clip, chunk_dur, used_windows, beats
                 )
-                if clip_result:
-                    selection_method = "best_available"
-                    stats.setdefault("best_available_count", 0)
-                    stats["best_available_count"] += 1
-
-            if clip_result:
-                clip, source_start, source_end, confidence, reason = clip_result
-                if confidence < self.confidence_threshold and prev_clip is not None:
-                    # Try to find the best unused clip instead of extending
-                    best_alt = None
-                    best_alt_score = -1
-                    for c in clips:
-                        cid = c.get("clip_id", "unknown")
-                        if used_clips.get(cid, 0) >= self.max_repetition:
-                            continue
-                        qual = c.get("quality_score", 0.5)
-                        if qual > best_alt_score:
-                            best_alt_score = qual
-                            best_alt = c
-                    if best_alt:
-                        clip = best_alt
-                        source_start = self._snap_to_beats(0, beats)
-                        source_end = min(line_duration, clip.get("duration", line_duration))
-                        confidence = max(0.1, confidence)
-                        reason = f"Fallback to best unused clip (score: {confidence:.2f})"
-                        selection_method = "extend_fallback"
-                        stats["extend_fallback_count"] += 1
-                        stats["low_confidence_count"] += 1
-                    else:
-                        # All clips at max repetition — cycle through clips round-robin
-                        clip = clips[self._fallback_idx % len(clips)]
-                        self._fallback_idx += 1
-                        source_start = self._snap_to_beats(0, beats)
-                        source_end = min(line_duration, clip.get("duration", line_duration))
-                        confidence = max(0.05, confidence * 0.5)
-                        reason = f"All clips used, cycling (score: {confidence:.2f})"
-                        selection_method = "extend_fallback"
-                        stats["extend_fallback_count"] += 1
-                        stats["low_confidence_count"] += 1
-                else:
-                    source_start = self._snap_to_beats(source_start, beats)
-            else:
-                if clips:
-                    fallback_clip = clips[self._fallback_idx % len(clips)]
-                    self._fallback_idx += 1
-                    clip = fallback_clip
-                    source_start = self._snap_to_beats(0, beats)
-                    source_end = min(line_duration, clip.get("duration", line_duration))
-                    confidence = 0.05
-                    reason = "No match, cycling clips"
-                    selection_method = "hard_fallback"
-                    stats["hard_fallback_count"] += 1
-                    clip_result = (clip, source_start, source_end, confidence, reason)
-
-            if clip_result:
-                clip, source_start, source_end, confidence, reason = clip_result
-
-                clip_caption = self._lookup_clip_caption(clip, source_start, source_end)
-
-                event = TimelineEvent(
-                    clip_id=clip.get("clip_id", "unknown"),
-                    source_start=source_start,
-                    source_end=source_end,
-                    timeline_start=current_time,
-                    timeline_end=current_time + line_duration,
-                    transition=self._select_transition(current_time, sections),
-                    reason=reason,
-                    confidence=confidence,
-                    lyric_text=line.get("text", ""),
-                    selection_method=selection_method,
-                    clip_caption=clip_caption,
+                if reused:
+                    stats["window_reuse_count"] += 1
+                used_windows.setdefault(clip["clip_id"], []).append(
+                    (source_start, source_end)
                 )
-                timeline_events.append(asdict(event))
 
-                clip_id = clip.get("clip_id", "unknown")
-                used_clips[clip_id] = used_clips.get(clip_id, 0) + 1
-                prev_clip = clip
-                prev_source_start = source_start
-                prev_source_end = source_end
-
+                events.append({
+                    "clip_id": clip["clip_id"],
+                    "source_start": round(source_start, 3),
+                    "source_end": round(source_end, 3),
+                    "timeline_start": tl_start,
+                    "timeline_end": tl_end,
+                    "transition": "fade" if kind in ("intro", "outro") else "cut",
+                    "reason": reason,
+                    "confidence": round(confidence, 3),
+                    "lyric_text": slot["text"] if kind == "lyric" else f"[{kind}]",
+                    "selection_method": method if kind == "lyric" else kind,
+                    "clip_caption": self._lookup_clip_caption(clip, source_start, source_end),
+                })
+                prev_clip_id = clip["clip_id"]
                 logger.info(
-                    "Event %d: lyric='%s' clip=%s method=%s confidence=%.3f",
-                    len(timeline_events) - 1,
-                    line.get("text", "")[:30],
-                    clip_id[:20],
-                    selection_method,
-                    confidence,
+                    "Event %d [%s] %.2f-%.2fs: clip=%s window=[%.2f-%.2f] method=%s conf=%.3f lyric='%s'",
+                    len(events) - 1, kind, tl_start, tl_end, clip["clip_id"],
+                    source_start, source_end, method, confidence, slot["text"][:40],
                 )
 
-            current_time += line_duration
-
-        if current_time < duration and clips:
-            remaining = duration - current_time
-            fallback_clip = clips[self._fallback_idx % len(clips)]
-            self._fallback_idx += 1
-            clip_id = fallback_clip.get("clip_id", "unknown")
-            clip_duration = fallback_clip.get("duration", remaining)
-            source_start = self._snap_to_beats(0, beats)
-            source_end = min(remaining, clip_duration)
-            tail_caption = self._lookup_clip_caption(fallback_clip, source_start, source_end)
-            timeline_events.append({
-                "clip_id": clip_id,
-                "source_start": round(source_start, 3),
-                "source_end": round(source_end, 3),
-                "timeline_start": round(current_time, 3),
-                "timeline_end": round(duration, 3),
-                "transition": "fade",
-                "reason": f"Tail fill: remaining {remaining:.1f}s",
-                "confidence": 0.3,
-                "lyric_text": "[tail]",
-                "selection_method": "hard_fallback",
-                "clip_caption": tail_caption,
-            })
-
-        timeline = {
-            "version": 1,
-            "duration": duration,
-            "total_events": len(timeline_events),
-            "tracks": {
-                "video": timeline_events,
-                "audio": [],
-            },
+        avg_confidence = round(
+            sum(e["confidence"] for e in events) / max(len(events), 1), 3
+        )
+        return {
+            "version": 2,
+            "mode": "auto",
+            "duration": round(duration, 3),
+            "total_events": len(events),
+            "tracks": {"video": events, "audio": []},
             "metadata": {
+                "mode": "auto",
                 "bpm": music_analysis.get("bpm", 0),
                 "sections_count": len(sections),
                 "lyrics_lines": len(lyrics_lines),
-                "clips_used": len(used_clips),
-                "clip_match_count": stats["clip_match_count"],
-                "best_available_count": stats["best_available_count"],
-                "segment_match_count": stats["segment_match_count"],
-                "semantic_match_count": stats["semantic_match_count"],
-                "extend_fallback_count": stats["extend_fallback_count"],
-                "hard_fallback_count": stats["hard_fallback_count"],
-                "low_confidence_count": stats["low_confidence_count"],
-                "avg_confidence": round(
-                    sum(e["confidence"] for e in timeline_events) / max(len(timeline_events), 1),
-                    3,
-                ),
+                "lyric_phrases": len(phrases),
+                "clips_used": len({e["clip_id"] for e in events}),
+                **stats,
+                "avg_confidence": avg_confidence,
+                "min_event_duration": self.min_event_duration,
+                "max_event_duration": self.max_event_duration,
             },
         }
 
-        return timeline
+    def _build_lyric_slots(self, phrases: List[Dict], duration: float) -> List[Dict]:
+        """Anchor each phrase at its REAL timestamp.
+
+        - Intro slot covers the instrumental before the first lyric.
+        - Short pauses between phrases extend (hold) the previous shot.
+        - Longer pauses get a music-fill slot with a different clip.
+        - Outro slot covers the tail after the last lyric.
+        """
+        min_dur = self.min_event_duration
+        raw: List[Dict] = []
+        for phrase in phrases:
+            start = float(phrase.get("start", 0.0))
+            end = float(phrase.get("end", start + min_dur))
+            if end - start < min_dur:
+                end = start + min_dur
+            start = max(0.0, start)
+            end = min(end, duration)
+            if start >= duration or end - start < 0.5:
+                continue
+            lines = phrase.get("lines") or [{}]
+            raw.append({
+                "text": phrase.get("text", ""),
+                "key_text": lines[0].get("text", phrase.get("text", "")),
+                "start": round(start, 3),
+                "end": round(end, 3),
+                "kind": "lyric",
+            })
+        if not raw:
+            return []
+
+        slots: List[Dict] = []
+        if raw[0]["start"] > 0.05:
+            slots.append({"text": "intro", "key_text": None, "start": 0.0,
+                          "end": raw[0]["start"], "kind": "intro"})
+
+        for slot in raw:
+            if slots and slot["start"] < slots[-1]["end"] - 0.01:
+                # Overlapping phrases (min-duration extension ran into the next
+                # anchor): never allow timeline overlap — it desyncs concat.
+                prev = slots[-1]
+                if prev["kind"] == "lyric" and \
+                        (slot["start"] - prev["start"]) >= 1.0:
+                    prev["end"] = slot["start"]  # trim the hold, keep >= 1s
+                else:
+                    # Too short to trim: delay this slot slightly instead
+                    slot["start"] = slots[-1]["end"]
+                    slot["end"] = max(slot["end"], slot["start"] + 1.0)
+            if slots and slot["start"] > slots[-1]["end"] + 0.01:
+                prev = slots[-1]
+                gap = slot["start"] - prev["end"]
+                prev_len = prev["end"] - prev["start"]
+                if prev["kind"] == "lyric" and prev_len + gap <= self.max_event_duration:
+                    prev["end"] = slot["start"]  # hold previous shot through the pause
+                else:
+                    slots.append({"text": "music", "key_text": None,
+                                  "start": prev["end"], "end": slot["start"],
+                                  "kind": "music"})
+            slots.append(slot)
+
+        if slots[-1]["end"] < duration - 0.05:
+            slots.append({"text": "outro", "key_text": None,
+                          "start": slots[-1]["end"], "end": duration,
+                          "kind": "outro"})
+        return slots
+
+    def _split_chunks(self, duration: float) -> List[Tuple[float, float]]:
+        """Split a slot into equal chunks of at most max_event_duration."""
+        if duration <= self.max_event_duration + 1e-6:
+            return [(0.0, round(duration, 3))]
+        n = int(duration / self.max_event_duration)
+        if duration % self.max_event_duration > 1e-6:
+            n += 1
+        chunk = duration / n
+        return [(round(i * chunk, 3), round(chunk, 3)) for i in range(n)]
+
+    def _select_clip_for_slot(
+        self,
+        slot: Dict,
+        clips: List[Dict],
+        clip_matches: Dict,
+        used_windows: Dict[str, List[Tuple[float, float]]],
+        prev_clip_id: Optional[str],
+        group_candidates: Dict[str, List[Tuple[Dict, float, str]]],
+        stats: Dict,
+    ) -> Tuple[Dict, float, str, str]:
+        kind = slot["kind"]
+        required = slot["end"] - slot["start"]
+
+        if kind != "lyric":
+            clip = self._pick_filler_clip(clips, used_windows, required, prev_clip_id)
+            stats["filler_count"] += 1
+            return clip, 0.2, f"{kind.capitalize()} fill: best available clip", kind
+
+        key_text = slot.get("key_text") or slot["text"]
+        if key_text not in group_candidates:
+            group_candidates[key_text] = self._resolve_group_candidates(
+                key_text, clips, clip_matches
+            )
+        candidates = group_candidates[key_text]
+
+        deferred: Optional[Tuple[Dict, float, str]] = None
+        for clip, score, method in candidates:
+            cid = clip.get("clip_id", "unknown")
+            if len(used_windows.get(cid, [])) >= self.max_clip_usage:
+                continue
+            if self._window_freshness(clip, required, used_windows) > self.window_overlap_limit:
+                continue
+            if cid == prev_clip_id:
+                if deferred is None:
+                    deferred = (clip, score, method)
+                continue
+            stats[self._stat_key(method)] += 1
+            reason = (f"Lyric group '{_normalize_text(key_text)[:30]}' -> clip {cid} "
+                      f"({method}, score {score:.2f})")
+            return clip, self._confidence_for(method, score), reason, method
+
+        # Only fresh option is the previous clip — allowed (window still fresh)
+        if deferred is not None:
+            clip, score, method = deferred
+            stats[self._stat_key(method)] += 1
+            reason = (f"Lyric group '{_normalize_text(key_text)[:30]}' -> clip "
+                      f"{clip.get('clip_id')} ({method}, score {score:.2f})")
+            return clip, self._confidence_for(method, score), reason, method
+
+        # Window pool exhausted for this group: reuse windows (sync preserved)
+        for clip, score, method in candidates:
+            cid = clip.get("clip_id", "unknown")
+            if len(used_windows.get(cid, [])) >= self.max_clip_usage:
+                continue
+            stats[self._stat_key(method)] += 1
+            confidence = self._confidence_for(method, score) * 0.7
+            reason = (f"Lyric group '{_normalize_text(key_text)[:30]}' -> clip {cid} "
+                      f"({method}, score {score:.2f}, window reused)")
+            return clip, confidence, reason, method
+
+        clip = clips[0]
+        return clip, 0.05, "Hard fallback: first clip", "hard_fallback"
+
+    @staticmethod
+    def _stat_key(method: str) -> str:
+        if method == "clip_match":
+            return "clip_match_count"
+        if method == "clip_match_low":
+            return "clip_match_low_count"
+        return "best_available_count"
+
+    def _confidence_for(self, method: str, score: float) -> float:
+        if method == "clip_match":
+            return max(0.05, min(score, 1.0))
+        if method == "clip_match_low":
+            return max(0.05, score * 0.5)
+        return max(0.05, score * 0.4)
+
+    def _resolve_group_candidates(
+        self, key_text: str, clips: List[Dict], clip_matches: Dict
+    ) -> List[Tuple[Dict, float, str]]:
+        """Primary + alternate clips for a repeated-lyric group."""
+        clip_by_id = {c.get("clip_id", "unknown"): c for c in clips}
+        candidates: List[Tuple[Dict, float, str]] = []
+        seen = set()
+
+        for m in sorted(clip_matches.get(key_text, []) or [],
+                        key=lambda x: -float(x.get("score", 0))):
+            cid = m.get("clip_id", "")
+            clip = clip_by_id.get(cid)
+            if clip is None or cid in seen:
+                continue
+            seen.add(cid)
+            score = float(m.get("score", 0))
+            method = "clip_match" if score >= self.confidence_threshold else "clip_match_low"
+            candidates.append((clip, score, method))
+
+        for clip in sorted(
+            clips,
+            key=lambda c: (-(c.get("quality_score") or 0.5), c.get("clip_id", "unknown")),
+        ):
+            cid = clip.get("clip_id", "unknown")
+            if cid in seen:
+                continue
+            seen.add(cid)
+            candidates.append((clip, float(clip.get("quality_score") or 0.5), "best_available"))
+        return candidates
+
+    def _pick_filler_clip(
+        self,
+        clips: List[Dict],
+        used_windows: Dict[str, List[Tuple[float, float]]],
+        required: float,
+        prev_clip_id: Optional[str],
+    ) -> Dict:
+        """Deterministic filler pick: freshest window, least used, best quality."""
+        def sort_key(c: Dict):
+            cid = c.get("clip_id", "unknown")
+            fresh = self._window_freshness(c, required, used_windows) <= self.window_overlap_limit
+            usage = len(used_windows.get(cid, []))
+            return (0 if fresh else 1, 1 if cid == prev_clip_id else 0, usage,
+                    -(c.get("quality_score") or 0.5), cid)
+        return sorted(clips, key=sort_key)[0]
+
+    def _candidate_starts(self, clip: Dict, required: float) -> List[float]:
+        """All candidate window start positions inside a clip (trim from anywhere)."""
+        clip_dur = float(clip.get("duration", 0) or 0)
+        if clip_dur <= 0:
+            return [0.0]
+        max_start = max(0.0, clip_dur - required)
+        starts = set()
+        for seg in clip.get("segment_descriptions", []) or []:
+            try:
+                s = float(seg.get("start", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            starts.add(round(min(max(0.0, s), max_start), 3))
+        for seg in clip.get("best_segments", []) or []:
+            try:
+                s = float(seg.get("start", 0) or 0)
+            except (TypeError, ValueError):
+                continue
+            starts.add(round(min(max(0.0, s), max_start), 3))
+        t = 0.0
+        while t <= max_start + 1e-6:
+            starts.add(round(t, 3))
+            t += 1.0
+        if not starts:
+            starts.add(0.0)
+        return sorted(starts)
+
+    @staticmethod
+    def _overlap_amount(start: float, end: float,
+                        used: List[Tuple[float, float]]) -> float:
+        total = 0.0
+        for us, ue in used:
+            total += max(0.0, min(end, ue) - max(start, us))
+        return total
+
+    def _window_freshness(
+        self,
+        clip: Dict,
+        required: float,
+        used_windows: Dict[str, List[Tuple[float, float]]],
+    ) -> float:
+        """Best achievable overlap fraction with used windows of this clip.
+        0.0 = a fully fresh window is still available."""
+        used = used_windows.get(clip.get("clip_id", "unknown"), [])
+        if not used or required <= 0:
+            return 0.0
+        best: Optional[float] = None
+        for s in self._candidate_starts(clip, required):
+            ov = min(self._overlap_amount(s, s + required, used), required)
+            frac = ov / required
+            if best is None or frac < best:
+                best = frac
+                if best == 0.0:
+                    break
+        return best if best is not None else 1.0
+
+    def _pick_window(
+        self,
+        clip: Dict,
+        required: float,
+        used_windows: Dict[str, List[Tuple[float, float]]],
+        beats: List[float],
+    ) -> Tuple[float, float, bool]:
+        """Stage 2 of matching: pick the best source window inside the clip.
+
+        Prefers windows that (a) don't overlap already-used windows,
+        (b) cover high-motion/high-quality segments, (c) start on a beat.
+        Returns (start, end, reused)."""
+        clip_dur = float(clip.get("duration", 0) or 0)
+        if clip_dur <= 0:
+            return 0.0, round(max(required, 0.5), 3), False
+        required = min(required, clip_dur)
+        used = used_windows.get(clip.get("clip_id", "unknown"), [])
+        max_start = max(0.0, clip_dur - required)
+
+        best: Optional[Tuple[float, float, float]] = None  # (overlap, -motion, start)
+        for s in self._candidate_starts(clip, required):
+            s = min(max(0.0, self._snap_to_beats(s, beats, tolerance=0.2)), max_start)
+            e = s + required
+            ov = min(self._overlap_amount(s, e, used), required)
+            motion = 0.0
+            for seg in clip.get("best_segments", []) or []:
+                seg_s = float(seg.get("start", 0) or 0)
+                seg_e = float(seg.get("end", 0) or 0)
+                motion += max(0.0, min(e, seg_e) - max(s, seg_s)) * float(seg.get("score", 0) or 0)
+            key = (ov, -motion, s)
+            if best is None or key < best:
+                best = key
+        if best is None:
+            return 0.0, round(required, 3), False
+
+        start = best[2]
+        end = min(start + required, clip_dur)
+        if end - start < required - 0.05:
+            start = max(0.0, clip_dur - required)
+            end = clip_dur
+        reused = best[0] > self.window_overlap_limit * required
+        return round(start, 3), round(end, 3), reused
 
     def generate_sequential_timeline(
         self,
@@ -809,18 +1029,18 @@ class EditingBrain:
             return round(nearest, 3)
         return time
 
-    def _select_transition(self, current_time: float, sections: List[Dict]) -> str:
+    def _select_transition(self, current_time: float, sections: List[Dict],
+                           kind: str = "lyric") -> str:
+        """Deterministic transition selection (no randomness).
+        Note: the current concat renderer supports cuts and fades only."""
+        if kind in ("intro", "outro"):
+            return "fade"
         for section in sections:
             if section["start"] <= current_time <= section["end"]:
                 label = section.get("label", "").lower()
-                if "chorus" in label:
-                    return random.choice(["crossfade", "dissolve"])
-                elif "verse" in label:
-                    return "cut"
-                elif "bridge" in label:
+                if "bridge" in label or "intro" in label or "outro" in label:
                     return "fade"
-                elif "intro" in label or "outro" in label:
-                    return "fade"
+                return "cut"
         return "cut"
 
     def _generate_empty_timeline(self, duration: float) -> Dict:
@@ -871,6 +1091,16 @@ class EditingBrain:
 
             if event["source_start"] >= event["source_end"]:
                 errors.append(f"Event {i}: source start >= source end")
+
+            src_dur = event["source_end"] - event["source_start"]
+            tl_dur = event["timeline_end"] - event["timeline_start"]
+            if abs(src_dur - tl_dur) > 0.25:
+                errors.append(
+                    f"Event {i}: source duration {src_dur:.2f}s != timeline duration {tl_dur:.2f}s"
+                )
+
+            if tl_dur < 1.0:
+                warnings.append(f"Event {i}: very short event ({tl_dur:.2f}s)")
 
             if event["confidence"] < 0.3:
                 warnings.append(f"Event {i}: low confidence ({event['confidence']:.2f})")

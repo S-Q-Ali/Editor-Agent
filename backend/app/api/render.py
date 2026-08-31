@@ -59,6 +59,11 @@ async def render_video(project_path: str, data: RenderRequest):
     if result.get("error"):
         raise HTTPException(status_code=500, detail=result["error"])
 
+    from app.storage.project_manager import ProjectManager
+    updates = {"preview_ready": True, "status": "preview_ready"} if data.preview \
+        else {"status": "final_rendered"}
+    ProjectManager().update_project(project_path, updates)
+
     return result
 
 
