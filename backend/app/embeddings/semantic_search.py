@@ -64,41 +64,60 @@ class SemanticSearch:
             })
         return enhanced_clips
 
-    def generate_clip_visual_embeddings(self, clips: List[Dict], video_dir: str) -> List[Dict]:
-        """Generate CLIP visual embeddings for each segment frame."""
-        try:
-            from app.video.clip_matcher import get_clip_matcher
-            matcher = get_clip_matcher()
-        except Exception as e:
-            logger.warning("CLIP matcher unavailable, skipping visual embeddings: %s", e)
-            return clips
+    def generate_clip_visual_embeddings(self, clips: List[Dict], video_dir: str = "") -> List[Dict]:
+        """Generate averaged per-clip CLIP visual embedding from existing segment embeddings.
 
+        If segments already have 'clip_embedding' (from clip_analyzer), just average them.
+        If not and video_dir is provided, encode frames directly.
+        """
         enhanced_clips = []
         for clip in clips:
-            filename = clip.get("filename", "")
-            video_path = str(Path(video_dir) / filename)
-            segment_descs = clip.get("segment_descriptions", clip.get("best_segments", []))
-            clip_visual_segs = []
+            segment_descs = clip.get("segment_descriptions", clip.get("segment_embeddings", []))
+            clip_embs = []
+
             for seg in segment_descs:
-                seg_start = seg.get("start", 0)
-                seg_end = seg.get("end", 0)
-                clip_emb = None
+                clip_emb = seg.get("clip_embedding")
+                if clip_emb is not None:
+                    clip_embs.append(clip_emb)
+
+            # If no pre-computed embeddings, try encoding from video
+            if not clip_embs and video_dir:
                 try:
+                    from app.video.clip_matcher import get_clip_matcher
+                    matcher = get_clip_matcher()
+                    filename = clip.get("filename", "")
+                    video_path = str(Path(video_dir) / filename)
                     cap = __import__("cv2").VideoCapture(video_path)
                     if cap.isOpened():
                         fps = cap.get(__import__("cv2").CAP_PROP_FPS) or 30
-                        mid = (seg_start + seg_end) / 2
-                        cap.set(__import__("cv2").CAP_PROP_POS_FRAMES, int(mid * fps))
-                        ret, frame = cap.read()
+                        for seg in segment_descs:
+                            seg_start = seg.get("start", 0)
+                            seg_end = seg.get("end", 0)
+                            mid = (seg_start + seg_end) / 2
+                            cap.set(__import__("cv2").CAP_PROP_POS_FRAMES, int(mid * fps))
+                            ret, frame = cap.read()
+                            if ret:
+                                emb = matcher.encode_image(frame)
+                                if emb is not None:
+                                    clip_embs.append(emb.tolist())
                         cap.release()
-                        if ret:
-                            clip_emb = matcher.encode_image(frame).tolist()
                 except Exception as e:
-                    logger.debug("CLIP encoding failed for %s segment %.1f: %s", filename, seg_start, e)
-                clip_visual_segs.append({**seg, "clip_embedding": clip_emb})
+                    logger.debug("CLIP encoding failed for %s: %s", clip.get("clip_id"), e)
+
+            # Average all segment CLIP embeddings into a single per-clip embedding
+            avg_emb = None
+            if clip_embs:
+                arr = np.array([e if isinstance(e, list) else e.tolist() for e in clip_embs])
+                avg_emb = np.mean(arr, axis=0)
+                norm = np.linalg.norm(avg_emb)
+                if norm > 0:
+                    avg_emb = (avg_emb / norm).tolist()
+                else:
+                    avg_emb = avg_emb.tolist()
+
             enhanced_clips.append({
                 **clip,
-                "segment_embeddings": clip_visual_segs,
+                "clip_visual_embedding": avg_emb,
             })
         return enhanced_clips
 
@@ -189,6 +208,77 @@ class SemanticSearch:
                             "clip_visual": round(clip_score, 3),
                         },
                     })
+        results.sort(key=lambda x: x["score"], reverse=True)
+        return results[:top_k]
+
+    def search_clips_for_lyrics(self, lyrics: List[Dict], clips: List[Dict], top_k_per_line: int = 5) -> Dict[str, List[Dict]]:
+        """Match each lyric line to the best WHOLE CLIP using 3-signal fusion.
+
+        Signals:
+        - semantic: sentence-transformer cosine similarity on full clip text (30%)
+        - text: Jaccard word overlap between lyric and scene_description (15%)
+        - clip_visual: CLIP dot product between lyric text embedding and averaged per-clip visual embedding (55%)
+        """
+        results = {}
+        for line in lyrics:
+            query = line.get("text", "")
+            if query:
+                results[query] = self._search_clips_single(query, clips, top_k_per_line)
+        return results
+
+    def _search_clips_single(self, query: str, clips: List[Dict], top_k: int = 5) -> List[Dict]:
+        """Find the best matching WHOLE CLIP for a query string."""
+        query_embedding = self.generate_embedding(query)
+
+        # Encode query with CLIP text encoder
+        clip_text_emb = None
+        try:
+            from app.video.clip_matcher import get_clip_matcher
+            matcher = get_clip_matcher()
+            clip_text_emb = matcher.encode_text(query)
+        except Exception:
+            pass
+
+        results = []
+        for clip in clips:
+            # Signal 1: semantic embedding (sentence-transformer on full clip text)
+            clip_semantic_emb = clip.get("semantic_embedding", [])
+            emb_score = self._cosine_similarity(query_embedding, clip_semantic_emb) if clip_semantic_emb else 0.0
+
+            # Signal 2: text overlap between lyric and scene description
+            scene_desc = clip.get("scene_description", "")
+            caption_text = " ".join(
+                seg.get("caption", "") for seg in clip.get("segment_descriptions", [])
+            )
+            clip_text = f"{scene_desc} {caption_text}".strip()
+            text_score = self._text_similarity(query, clip_text) if clip_text else 0.0
+
+            # Signal 3: CLIP visual embedding (averaged across all segment frames)
+            clip_vis_emb = clip.get("clip_visual_embedding")
+            clip_score = 0.0
+            if clip_text_emb is not None and clip_vis_emb is not None:
+                clip_score = float(np.dot(np.array(clip_text_emb), np.array(clip_vis_emb)))
+                clip_score = max(0.0, clip_score)
+
+            score = (
+                0.10 * emb_score +
+                0.05 * text_score +
+                0.85 * clip_score
+            )
+
+            if score > 0.01:
+                results.append({
+                    "clip_id": clip.get("clip_id", "unknown"),
+                    "score": round(score, 3),
+                    "scores": {
+                        "semantic": round(emb_score, 3),
+                        "text": round(text_score, 3),
+                        "clip_visual": round(clip_score, 3),
+                    },
+                    "scene_description": scene_desc[:80],
+                    "duration": clip.get("duration", 0),
+                })
+
         results.sort(key=lambda x: x["score"], reverse=True)
         return results[:top_k]
 

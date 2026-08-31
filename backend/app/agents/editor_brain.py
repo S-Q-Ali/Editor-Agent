@@ -26,7 +26,8 @@ class EditingBrain:
     def __init__(self):
         self.transitions = ["cut", "fade", "crossfade", "dissolve"]
         self.max_repetition = 2
-        self.confidence_threshold = 0.15
+        self.confidence_threshold = 0.10
+        self._fallback_idx = 0
 
     def generate_timeline(
         self,
@@ -35,6 +36,7 @@ class EditingBrain:
         clips: List[Dict],
         lyrics_matches: Dict,
         segment_matches: Optional[Dict] = None,
+        clip_matches: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         duration = music_analysis.get("duration", 0)
         beats = music_analysis.get("beats", [])
@@ -56,6 +58,8 @@ class EditingBrain:
         prev_source_start = 0
         prev_source_end = 0
         stats = {
+            "clip_match_count": 0,
+            "best_available_count": 0,
             "segment_match_count": 0,
             "semantic_match_count": 0,
             "extend_fallback_count": 0,
@@ -77,54 +81,73 @@ class EditingBrain:
             clip_result = None
             selection_method = ""
 
-            if segment_matches:
-                clip_result = self._select_clip_with_segment(
-                    line, clips, segment_matches, used_clips, line_duration
+            # Priority 1: CLIP-level whole-clip matching (best quality)
+            if clip_matches:
+                clip_result = self._select_clip_from_clip_matches(
+                    line, clips, clip_matches, segment_matches, used_clips, line_duration, beats
                 )
                 if clip_result:
-                    selection_method = "segment_match"
-                    stats["segment_match_count"] += 1
+                    selection_method = "clip_match"
+                    stats.setdefault("clip_match_count", 0)
+                    stats["clip_match_count"] += 1
 
+            # Priority 2: Best available clip (no matching, just pick highest quality unused)
             if not clip_result:
-                clip_result = self._select_clip(
-                    line, clips, lyrics_matches, used_clips, line_duration
+                clip_result = self._select_best_available_clip(
+                    clips, used_clips, line_duration, beats
                 )
                 if clip_result:
-                    selection_method = "semantic_match"
-                    stats["semantic_match_count"] += 1
+                    selection_method = "best_available"
+                    stats.setdefault("best_available_count", 0)
+                    stats["best_available_count"] += 1
 
             if clip_result:
                 clip, source_start, source_end, confidence, reason = clip_result
                 if confidence < self.confidence_threshold and prev_clip is not None:
-                    clip = prev_clip
-                    source_start = prev_source_start
-                    source_end = prev_source_end
-                    confidence = max(0.1, confidence)
-                    reason = f"Extended previous clip (low confidence: {confidence:.2f})"
-                    selection_method = "extend_fallback"
-                    stats["extend_fallback_count"] += 1
-                    stats["low_confidence_count"] += 1
+                    # Try to find the best unused clip instead of extending
+                    best_alt = None
+                    best_alt_score = -1
+                    for c in clips:
+                        cid = c.get("clip_id", "unknown")
+                        if used_clips.get(cid, 0) >= self.max_repetition:
+                            continue
+                        qual = c.get("quality_score", 0.5)
+                        if qual > best_alt_score:
+                            best_alt_score = qual
+                            best_alt = c
+                    if best_alt:
+                        clip = best_alt
+                        source_start = self._snap_to_beats(0, beats)
+                        source_end = min(line_duration, clip.get("duration", line_duration))
+                        confidence = max(0.1, confidence)
+                        reason = f"Fallback to best unused clip (score: {confidence:.2f})"
+                        selection_method = "extend_fallback"
+                        stats["extend_fallback_count"] += 1
+                        stats["low_confidence_count"] += 1
+                    else:
+                        # All clips at max repetition — cycle through clips round-robin
+                        clip = clips[self._fallback_idx % len(clips)]
+                        self._fallback_idx += 1
+                        source_start = self._snap_to_beats(0, beats)
+                        source_end = min(line_duration, clip.get("duration", line_duration))
+                        confidence = max(0.05, confidence * 0.5)
+                        reason = f"All clips used, cycling (score: {confidence:.2f})"
+                        selection_method = "extend_fallback"
+                        stats["extend_fallback_count"] += 1
+                        stats["low_confidence_count"] += 1
                 else:
                     source_start = self._snap_to_beats(source_start, beats)
             else:
                 if clips:
-                    if prev_clip is not None:
-                        clip = prev_clip
-                        source_start = prev_source_start
-                        source_end = prev_source_end
-                        confidence = 0.1
-                        reason = "Extended previous clip (no match found)"
-                        selection_method = "extend_fallback"
-                        stats["extend_fallback_count"] += 1
-                    else:
-                        fallback_clip = clips[0]
-                        clip = fallback_clip
-                        source_start = 0
-                        source_end = min(line_duration, fallback_clip.get("duration", line_duration))
-                        confidence = 0.1
-                        reason = "No suitable clip found, using fallback"
-                        selection_method = "hard_fallback"
-                        stats["hard_fallback_count"] += 1
+                    fallback_clip = clips[self._fallback_idx % len(clips)]
+                    self._fallback_idx += 1
+                    clip = fallback_clip
+                    source_start = self._snap_to_beats(0, beats)
+                    source_end = min(line_duration, clip.get("duration", line_duration))
+                    confidence = 0.05
+                    reason = "No match, cycling clips"
+                    selection_method = "hard_fallback"
+                    stats["hard_fallback_count"] += 1
                     clip_result = (clip, source_start, source_end, confidence, reason)
 
             if clip_result:
@@ -174,6 +197,8 @@ class EditingBrain:
                 "sections_count": len(sections),
                 "lyrics_lines": len(lyrics_lines),
                 "clips_used": len(used_clips),
+                "clip_match_count": stats["clip_match_count"],
+                "best_available_count": stats["best_available_count"],
                 "segment_match_count": stats["segment_match_count"],
                 "semantic_match_count": stats["semantic_match_count"],
                 "extend_fallback_count": stats["extend_fallback_count"],
@@ -258,6 +283,128 @@ class EditingBrain:
         confidence = base_score * 0.6 * repetition_penalty
         reason = f"Fallback selection (quality: {base_score:.2f}, used: {times_used}x)"
         return (clip, 0, actual_duration, confidence, reason)
+
+    def _select_best_available_clip(
+        self,
+        clips: List[Dict],
+        used_clips: Dict,
+        required_duration: float,
+        beats: List[float],
+    ) -> Optional[tuple]:
+        """Pick the highest-quality unused clip without any matching logic."""
+        candidates = []
+        for clip in clips:
+            clip_id = clip.get("clip_id", "unknown")
+            times_used = used_clips.get(clip_id, 0)
+            if times_used >= self.max_repetition:
+                continue
+            quality = clip.get("quality_score", 0.5)
+            repetition_penalty = max(0.1, 1.0 - times_used * 0.15)
+            candidates.append((clip, quality * repetition_penalty))
+
+        if not candidates:
+            return None
+
+        candidates.sort(key=lambda x: x[1], reverse=True)
+        clip, score = candidates[0]
+        clip_id = clip.get("clip_id", "unknown")
+        clip_duration = clip.get("duration", 0)
+        times_used = used_clips.get(clip_id, 0)
+
+        # Use best segment within clip if available
+        best_segments = clip.get("best_segments", [])
+        if best_segments:
+            best_seg = best_segments[0]
+            source_start = self._snap_to_beats(best_seg.get("start", 0), beats)
+            source_end = min(source_start + required_duration, clip_duration)
+            return (clip, source_start, source_end, score, f"Best available clip (quality: {score:.2f}, used: {times_used}x)")
+
+        source_start = self._snap_to_beats(0, beats)
+        source_end = min(source_start + required_duration, clip_duration)
+        return (clip, source_start, source_end, score, f"Best available clip (quality: {score:.2f}, used: {times_used}x)")
+
+    def _select_clip_from_clip_matches(
+        self,
+        lyric_line: Dict,
+        clips: List[Dict],
+        clip_matches: Dict,
+        segment_matches: Optional[Dict],
+        used_clips: Dict,
+        required_duration: float,
+        beats: List[float],
+    ) -> Optional[tuple]:
+        """Select a clip using whole-clip CLIP matching, then find best segment within it."""
+        lyric_text = lyric_line.get("text", "")
+        matches = clip_matches.get(lyric_text, [])
+
+        for match in matches:
+            score = match.get("score", 0)
+            if score < 0.02:
+                continue
+
+            clip_id = match.get("clip_id", "")
+            clip = next((c for c in clips if c.get("clip_id") == clip_id), None)
+            if not clip:
+                continue
+
+            times_used = used_clips.get(clip_id, 0)
+            if times_used >= self.max_repetition:
+                continue
+
+            repetition_penalty = max(0.1, 1.0 - times_used * 0.15)
+            confidence = score * repetition_penalty
+
+            # Find best segment within this clip for source range
+            source_start, source_end = self._find_best_segment_in_clip(
+                clip, lyric_text, segment_matches, required_duration, beats
+            )
+
+            scene_desc = match.get("scene_description", "")[:50]
+            reason = f"Clip match: \"{scene_desc}\" (score: {score:.2f}, used: {times_used}x)"
+            return (clip, source_start, source_end, confidence, reason)
+
+        return None
+
+    def _find_best_segment_in_clip(
+        self,
+        clip: Dict,
+        lyric_text: str,
+        segment_matches: Optional[Dict],
+        required_duration: float,
+        beats: List[float],
+    ) -> tuple:
+        """Find the best source range within a matched clip."""
+        clip_duration = clip.get("duration", 0)
+        segment_embeddings = clip.get("segment_embeddings", clip.get("segment_descriptions", []))
+
+        # Try to find the best segment within this clip from segment_matches
+        best_seg_start = 0
+        best_seg_score = -1
+
+        if segment_matches and lyric_text in segment_matches:
+            for seg_match in segment_matches[lyric_text]:
+                if seg_match.get("clip_id") == clip.get("clip_id"):
+                    seg_score = seg_match.get("score", 0)
+                    if seg_score > best_seg_score:
+                        best_seg_score = seg_score
+                        best_seg_start = seg_match.get("segment_start", 0)
+
+        # If no segment match found, use the highest-quality segment
+        if best_seg_score < 0 and segment_embeddings:
+            best_seg = max(segment_embeddings, key=lambda s: s.get("score", 0))
+            best_seg_start = best_seg.get("start", 0)
+
+        # Snap start to nearest beat
+        source_start = self._snap_to_beats(best_seg_start, beats)
+
+        # Ensure we have enough duration
+        actual_end = min(source_start + required_duration, clip_duration)
+        if actual_end - source_start < required_duration * 0.5:
+            source_start = max(0, actual_end - required_duration)
+            source_start = self._snap_to_beats(source_start, beats)
+            actual_end = min(source_start + required_duration, clip_duration)
+
+        return source_start, actual_end
 
     def _select_clip_with_segment(
         self,

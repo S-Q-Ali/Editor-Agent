@@ -38,6 +38,7 @@ async def generate_timeline(project_path: str):
 
     lyrics_matches = {}
     segment_matches = {}
+    clip_level_matches = {}
     clips_dir = project_dir / "clips"
     video_dir = str(clips_dir) if clips_dir.exists() else ""
     if clips_file.exists():
@@ -46,18 +47,28 @@ async def generate_timeline(project_path: str):
         from app.embeddings.semantic_search import SemanticSearch
         search_engine = SemanticSearch()
         enriched_clips = embeddings_data.get("clips", [])
-        lyrics_matches = search_engine.search_for_lyrics(
+
+        # Whole-clip CLIP matching (primary — highest quality)
+        clip_level_matches = search_engine.search_clips_for_lyrics(
             lyrics_alignment.get("lines", []),
-            enriched_clips
+            enriched_clips,
         )
+
+        # Segment-level matching (fallback)
         segment_matches = search_engine.search_segments_for_lyrics(
             lyrics_alignment.get("lines", []),
             enriched_clips,
             video_dir=video_dir,
         )
 
+        # Legacy semantic text matching (last resort)
+        lyrics_matches = search_engine.search_for_lyrics(
+            lyrics_alignment.get("lines", []),
+            enriched_clips,
+        )
+
     timeline = brain.generate_timeline(
-        music_analysis, lyrics_alignment, clips, lyrics_matches, segment_matches
+        music_analysis, lyrics_alignment, clips, lyrics_matches, segment_matches, clip_level_matches
     )
 
     validation = brain.validate_timeline(timeline)
