@@ -165,8 +165,15 @@ function ProjectPage() {
       setPipelineStep('Analyzing music...')
       await fetch(`/api/analysis/music/${encodeURIComponent(projectPath)}`, { method: 'POST' })
 
-      setPipelineStep('Aligning lyrics...')
+      setPipelineStep('Extracting lyrics from audio...')
+      try {
+        await fetch(`/api/analysis/lyrics/${encodeURIComponent(projectPath)}/auto`, { method: 'POST' })
+      } catch (lyricsErr) {
+        console.warn('Auto lyrics extraction failed, continuing without lyrics:', lyricsErr)
+      }
+
       if (lyrics.trim()) {
+        setPipelineStep('Aligning custom lyrics...')
         await handleLyricsSubmit()
       }
 

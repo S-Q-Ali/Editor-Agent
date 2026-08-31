@@ -37,7 +37,12 @@ class EditingBrain:
         lyrics_lines = lyrics_alignment.get("lines", [])
 
         if not lyrics_lines:
-            return self._generate_empty_timeline(duration)
+            if beats and len(beats) > 1:
+                lyrics_lines = self._generate_beat_grid(beats, duration)
+            elif duration > 0:
+                lyrics_lines = self._generate_segment_grid(duration)
+            else:
+                return self._generate_empty_timeline(duration)
 
         timeline_events = []
         used_clips = {}
@@ -222,6 +227,43 @@ class EditingBrain:
             return (clip, seg_start, actual_end, confidence, reason)
 
         return None
+
+    def _generate_beat_grid(self, beats: List[float], duration: float) -> List[Dict]:
+        """Generate lyric-line-style grid from beat timestamps (2 beats per event)."""
+        lines = []
+        i = 0
+        while i < len(beats) - 1:
+            start = beats[i]
+            end = beats[min(i + 2, len(beats) - 1)]
+            if start >= duration:
+                break
+            lines.append({
+                "text": f"[beat {i // 2 + 1}]",
+                "section": "beat-synced",
+                "start": round(start, 3),
+                "end": round(end, 3),
+                "importance": 0.5,
+            })
+            i += 2
+        return lines
+
+    def _generate_segment_grid(self, duration: float, segment_length: float = 3.0) -> List[Dict]:
+        """Generate fixed-duration segments as fallback grid."""
+        lines = []
+        current = 0.0
+        idx = 1
+        while current < duration:
+            end = min(current + segment_length, duration)
+            lines.append({
+                "text": f"[segment {idx}]",
+                "section": "auto-segment",
+                "start": round(current, 3),
+                "end": round(end, 3),
+                "importance": 0.5,
+            })
+            current = end
+            idx += 1
+        return lines
 
     def _snap_to_beats(self, time: float, beats: List[float], tolerance: float = 0.3) -> float:
         """Snap a timestamp to the nearest beat if within tolerance."""

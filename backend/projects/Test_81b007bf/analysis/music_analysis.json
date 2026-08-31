@@ -1,0 +1,11 @@
+{
+  "duration": 156.12,
+  "bpm": 0,
+  "beats": [],
+  "downbeats": [],
+  "sections": [],
+  "energy_curve": [],
+  "silence_regions": [],
+  "sample_rate": 0,
+  "note": "Limited analysis - install librosa for full analysis"
+}

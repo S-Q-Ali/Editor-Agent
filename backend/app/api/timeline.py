@@ -20,15 +20,18 @@ async def generate_timeline(project_path: str):
 
     if not music_file.exists():
         raise HTTPException(status_code=404, detail="Music analysis not found")
-    if not lyrics_file.exists():
-        raise HTTPException(status_code=404, detail="Lyrics alignment not found")
     if not clips_file.exists():
         raise HTTPException(status_code=404, detail="Clip analysis not found")
 
     with open(music_file, "r") as f:
         music_analysis = json.load(f)
-    with open(lyrics_file, "r") as f:
-        lyrics_alignment = json.load(f)
+
+    if lyrics_file.exists():
+        with open(lyrics_file, "r") as f:
+            lyrics_alignment = json.load(f)
+    else:
+        lyrics_alignment = {"lines": [], "total_lines": 0}
+
     with open(clips_file, "r") as f:
         clips_data = json.load(f)
 
