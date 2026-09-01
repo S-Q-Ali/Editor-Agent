@@ -3,6 +3,7 @@ const path = require('path')
 const PythonManager = require('./python-manager')
 const { setupIPC } = require('./ipc-handlers')
 const { createMenu } = require('./menu')
+const { setupAutoUpdater } = require('./updater')
 
 let mainWindow
 let pythonManager
@@ -50,6 +51,10 @@ async function createWindow() {
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(createMenu(shell)))
   setupIPC(mainWindow)
+
+  if (!isDev) {
+    setupAutoUpdater(mainWindow)
+  }
 }
 
 async function startBackend() {
