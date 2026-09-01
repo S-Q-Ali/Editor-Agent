@@ -4,6 +4,11 @@ video:
   fps: 30
   aspect_ratio: "16:9"
 
+whisper:
+  model_size: "small"
+  device: "cpu"
+  compute_type: "int8"
+
 editing:
   default_style: adaptive
   beat_sync: true

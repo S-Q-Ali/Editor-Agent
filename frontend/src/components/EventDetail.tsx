@@ -77,8 +77,20 @@ function EventDetail({ event, eventIndex, projectPath, onClose, onReplace, onUpd
 
         <div>
           <label className="text-sm text-slate-400">Lyric Line</label>
-          <p className="font-medium italic">"{event.lyric_text}"</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="font-medium italic">"{event.lyric_text}"</p>
+            {event.auto_generated && (
+              <span className="text-[10px] bg-purple-600 px-1.5 py-0.5 rounded font-mono">Whisper</span>
+            )}
+          </div>
         </div>
+
+        {event.section && (
+          <div>
+            <label className="text-sm text-slate-400">Section</label>
+            <p className="text-sm font-medium">{event.section}</p>
+          </div>
+        )}
 
         {event.clip_caption && (
           <div>

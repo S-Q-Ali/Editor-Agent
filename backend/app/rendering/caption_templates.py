@@ -127,7 +127,14 @@ def escape_ffmpeg_text(text: str) -> str:
     identically and requires no escaping.
     """
     text = (text or "").replace("\n", " ").replace("\r", " ")
-    return text.replace("'", "\u2019")
+    text = text.replace("'", "\u2019")
+    text = text.replace("\\", "\\\\\\\\")
+    text = text.replace(":", "\\:")
+    text = text.replace(";", "\\;")
+    text = text.replace("[", "\\[")
+    text = text.replace("]", "\\]")
+    text = text.replace("%", "%%")
+    return text
 
 
 def get_section_color(section_label: str) -> str:

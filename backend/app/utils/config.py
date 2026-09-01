@@ -23,6 +23,11 @@ def get_default_config() -> Dict[str, Any]:
             "fps": int(os.getenv("DEFAULT_FPS", "30")),
             "aspect_ratio": "16:9",
         },
+        "whisper": {
+            "model_size": os.getenv("WHISPER_MODEL", "small"),
+            "device": "cpu",
+            "compute_type": "int8",
+        },
         "editing": {
             "default_style": "adaptive",
             "beat_sync": True,

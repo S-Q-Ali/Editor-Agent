@@ -19,6 +19,16 @@ const CAPTION_TEMPLATE_PREVIEWS: Record<string, { style: string; sample: string 
   colorful: { style: 'text-base text-yellow-300 font-bold', sample: 'Aa' },
 }
 
+const FONT_COLORS = [
+  { value: '', label: 'Default (template)', preview: 'text-white' },
+  { value: 'white', label: 'White', preview: 'text-white' },
+  { value: 'yellow', label: 'Yellow', preview: 'text-yellow-400' },
+  { value: 'cyan', label: 'Cyan', preview: 'text-cyan-400' },
+  { value: 'lightgreen', label: 'Light Green', preview: 'text-green-300' },
+  { value: 'magenta', label: 'Magenta', preview: 'text-pink-400' },
+  { value: 'red', label: 'Red', preview: 'text-red-400' },
+]
+
 function ReviewPage() {
   const navigate = useNavigate()
   const { currentProjectPath } = useAppStore()
@@ -36,6 +46,8 @@ function ReviewPage() {
 
   const [captionsEnabled, setCaptionsEnabled] = useState(true)
   const [captionTemplate, setCaptionTemplate] = useState('subtitle')
+  const [captionFontsize, setCaptionFontsize] = useState(24)
+  const [captionFontcolor, setCaptionFontcolor] = useState('')
   const [templates, setTemplates] = useState<CaptionTemplate[]>([])
 
   useEffect(() => {
@@ -154,6 +166,8 @@ function ReviewPage() {
         body: JSON.stringify({
           preview: false,
           caption_template: captionsEnabled ? captionTemplate : 'none',
+          caption_fontsize: captionFontsize,
+          caption_fontcolor: captionFontcolor || undefined,
         }),
       })
       if (response.ok) {
@@ -264,9 +278,46 @@ function ReviewPage() {
                   ))}
                 </div>
 
+                {/* Font Size */}
+                <div className="mb-3">
+                  <label className="text-sm text-slate-400 mb-1 block">
+                    Font Size: {captionFontsize}px
+                  </label>
+                  <input
+                    type="range"
+                    min="16"
+                    max="72"
+                    value={captionFontsize}
+                    onChange={(e) => setCaptionFontsize(parseInt(e.target.value))}
+                    className="w-full accent-blue-500"
+                  />
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>16px</span>
+                    <span>72px</span>
+                  </div>
+                </div>
+
+                {/* Font Color */}
+                <div className="mb-3">
+                  <label className="text-sm text-slate-400 mb-1 block">Font Color</label>
+                  <select
+                    value={captionFontcolor}
+                    onChange={(e) => setCaptionFontcolor(e.target.value)}
+                    className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+                  >
+                    {FONT_COLORS.map(c => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Preview */}
                 <div className="rounded bg-slate-700/50 p-2 text-center">
                   <div className="text-xs text-slate-400 mb-1">Preview</div>
-                  <div className={`${CAPTION_TEMPLATE_PREVIEWS[captionTemplate]?.style || 'text-sm text-white'}`}>
+                  <div
+                    className={`${CAPTION_TEMPLATE_PREVIEWS[captionTemplate]?.style || 'text-sm text-white'}`}
+                    style={{ fontSize: `${Math.min(captionFontsize, 32)}px` }}
+                  >
                     "Brush your teeth"
                   </div>
                 </div>

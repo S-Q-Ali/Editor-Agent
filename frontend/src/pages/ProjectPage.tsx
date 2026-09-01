@@ -5,6 +5,27 @@ import { projectApi, timelineApi } from '../services/api'
 import type { Project } from '../types'
 import ClipOrderPanel from '../components/ClipOrderPanel'
 
+const LANGUAGES = [
+  { code: 'auto', label: 'Auto-detect' },
+  { code: 'en', label: 'English' },
+  { code: 'ur', label: 'Urdu' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'ar', label: 'Arabic' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'fr', label: 'French' },
+  { code: 'de', label: 'German' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'zh', label: 'Chinese' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'tr', label: 'Turkish' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'bn', label: 'Bengali' },
+  { code: 'pa', label: 'Punjabi' },
+  { code: 'sw', label: 'Swahili' },
+  { code: 'id', label: 'Indonesian' },
+]
+
 function getFileName(path: string) {
   return path.split(/[/\\]/).pop() || path
 }
@@ -16,7 +37,7 @@ function ProjectPage() {
   const [loading, setLoading] = useState(!currentProject)
   const [processing, setProcessing] = useState(false)
   const [pipelineStep, setPipelineStep] = useState<string | null>(null)
-  const [lyrics, setLyrics] = useState('')
+  const [whisperLanguage, setWhisperLanguage] = useState('auto')
 
   const [musicUploading, setMusicUploading] = useState(false)
   const [musicProgress, setMusicProgress] = useState(0)
@@ -25,7 +46,7 @@ function ProjectPage() {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [timelineMode, setTimelineMode] = useState<string>(currentProject?.timeline_mode || 'auto')
-  const [clipOrderSaved, setClipOrderSaved] = useState(false)
+  const [, setClipOrderSaved] = useState(false)
 
   const musicInputRef = useRef<HTMLInputElement>(null)
   const clipsInputRef = useRef<HTMLInputElement>(null)
@@ -146,20 +167,6 @@ function ProjectPage() {
     if (clipsInputRef.current) clipsInputRef.current.value = ''
   }
 
-  const handleLyricsSubmit = async () => {
-    if (!lyrics.trim() || !projectPath) return
-
-    try {
-      await fetch(`/api/analysis/lyrics/${encodeURIComponent(projectPath)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: lyrics, use_whisper: false }),
-      })
-    } catch (err) {
-      console.error('Lyrics submit failed:', err)
-    }
-  }
-
   const runPipeline = async () => {
     if (!projectPath) return
     setProcessing(true)
@@ -170,14 +177,13 @@ function ProjectPage() {
 
       setPipelineStep('Extracting lyrics from audio...')
       try {
-        await fetch(`/api/analysis/lyrics/${encodeURIComponent(projectPath)}/auto`, { method: 'POST' })
+        await fetch(`/api/analysis/lyrics/${encodeURIComponent(projectPath)}/auto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ language: whisperLanguage === 'auto' ? null : whisperLanguage }),
+        })
       } catch (lyricsErr) {
         console.warn('Auto lyrics extraction failed, continuing without lyrics:', lyricsErr)
-      }
-
-      if (lyrics.trim()) {
-        setPipelineStep('Aligning custom lyrics...')
-        await handleLyricsSubmit()
       }
 
       setPipelineStep('Analyzing clips...')
@@ -300,15 +306,24 @@ function ProjectPage() {
           )}
         </div>
 
-        {/* Lyrics Card */}
+        {/* Lyrics Card — Auto-extract only */}
         <div className="rounded-lg border border-slate-700 bg-slate-800 p-6">
           <h3 className="font-semibold mb-3">Lyrics</h3>
-          <textarea
-            value={lyrics}
-            onChange={(e) => setLyrics(e.target.value)}
-            placeholder="Paste lyrics here..."
-            className="w-full h-32 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-400 focus:outline-none focus:border-blue-500 resize-none"
-          />
+          <p className="text-sm text-slate-400 mb-4">
+            Lyrics will be auto-extracted from the audio using Whisper.
+          </p>
+          <div>
+            <label className="text-sm text-slate-400 mb-1 block">Language</label>
+            <select
+              value={whisperLanguage}
+              onChange={(e) => setWhisperLanguage(e.target.value)}
+              className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-blue-500"
+            >
+              {LANGUAGES.map(lang => (
+                <option key={lang.code} value={lang.code}>{lang.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Clips Card */}

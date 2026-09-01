@@ -19,8 +19,10 @@ class TimelineEvent:
     reason: str
     confidence: float
     lyric_text: str = ""
+    section: str = ""
     selection_method: str = ""
     clip_caption: str = ""
+    auto_generated: bool = False
 
 
 def _normalize_text(text: str) -> str:
@@ -137,8 +139,10 @@ class EditingBrain:
                     "reason": reason,
                     "confidence": round(confidence, 3),
                     "lyric_text": slot["text"] if kind == "lyric" else f"[{kind}]",
+                    "section": slot.get("section", ""),
                     "selection_method": method if kind == "lyric" else kind,
                     "clip_caption": self._lookup_clip_caption(clip, source_start, source_end),
+                    "auto_generated": True,
                 })
                 prev_clip_id = clip["clip_id"]
                 logger.info(
@@ -196,6 +200,7 @@ class EditingBrain:
                 "start": round(start, 3),
                 "end": round(end, 3),
                 "kind": "lyric",
+                "section": phrase.get("section", ""),
             })
         if not raw:
             return []
@@ -537,8 +542,10 @@ class EditingBrain:
                 "reason": f"Sequential: phrase '{phrase['text'][:40]}' → clip '{clip_id}'",
                 "confidence": round(confidence, 3),
                 "lyric_text": phrase["text"],
+                "section": phrase.get("section", ""),
                 "selection_method": "sequential",
                 "clip_caption": clip_caption,
+                "auto_generated": True,
             }
             events.append(event)
             stats["sequential_count"] += 1
@@ -576,8 +583,10 @@ class EditingBrain:
                 "reason": f"Sequential tail fill: remaining {remaining:.1f}s",
                 "confidence": round(confidence, 3),
                 "lyric_text": "[tail]",
+                "section": "",
                 "selection_method": "sequential",
                 "clip_caption": tail_caption,
+                "auto_generated": True,
             })
 
         timeline = {
@@ -637,6 +646,7 @@ class EditingBrain:
                     "start": start,
                     "end": end,
                     "duration": end - start,
+                    "section": line.get("section", ""),
                     "lines": [line],
                 }
                 continue
@@ -664,6 +674,7 @@ class EditingBrain:
                     "start": start,
                     "end": end,
                     "duration": end - start,
+                    "section": line.get("section", ""),
                     "lines": [line],
                 }
 

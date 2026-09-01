@@ -57,7 +57,13 @@ class LyricsEngine:
     def align_with_whisper(self, audio_path: str, lyrics_text: str) -> List[Dict]:
         try:
             from faster_whisper import WhisperModel
-            model = WhisperModel("base", device="cpu", compute_type="int8")
+            from app.utils.config import load_config
+            config = load_config()
+            whisper_config = config.get("whisper", {})
+            model_size = whisper_config.get("model_size", "small")
+            device = whisper_config.get("device", "cpu")
+            compute_type = whisper_config.get("compute_type", "int8")
+            model = WhisperModel(model_size, device=device, compute_type=compute_type)
             segments, info = model.transcribe(audio_path, word_timestamps=True)
 
             whisper_lines = []

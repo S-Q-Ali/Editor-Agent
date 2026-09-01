@@ -4,9 +4,14 @@ from pathlib import Path
 import json
 from typing import Optional
 from app.lyrics.engine import LyricsEngine
+from app.utils.config import load_config
 
 router = APIRouter(prefix="/api/analysis/lyrics", tags=["analysis"])
 engine = LyricsEngine()
+
+
+class AutoLyricsRequest(BaseModel):
+    language: Optional[str] = None
 
 
 class LyricsSubmit(BaseModel):
@@ -15,7 +20,7 @@ class LyricsSubmit(BaseModel):
 
 
 @router.post("/{project_path:path}/auto")
-async def auto_extract_lyrics(project_path: str):
+async def auto_extract_lyrics(project_path: str, data: AutoLyricsRequest = AutoLyricsRequest()):
     project_dir = Path(project_path)
     lyrics_dir = project_dir / "lyrics"
     analysis_dir = project_dir / "analysis"
@@ -39,8 +44,20 @@ async def auto_extract_lyrics(project_path: str):
 
     try:
         from faster_whisper import WhisperModel
-        model = WhisperModel("base", device="cpu", compute_type="int8")
-        segments, info = model.transcribe(audio_path, word_timestamps=True)
+
+        config = load_config()
+        whisper_config = config.get("whisper", {})
+        model_size = whisper_config.get("model_size", "small")
+        device = whisper_config.get("device", "cpu")
+        compute_type = whisper_config.get("compute_type", "int8")
+
+        model = WhisperModel(model_size, device=device, compute_type=compute_type)
+
+        transcribe_kwargs = {"word_timestamps": True}
+        if data.language and data.language != "auto":
+            transcribe_kwargs["language"] = data.language
+
+        segments, info = model.transcribe(audio_path, **transcribe_kwargs)
 
         words_list = []
         text_lines = []
@@ -64,7 +81,16 @@ async def auto_extract_lyrics(project_path: str):
                 current_line["text"] += word_info.word
                 current_line["end"] = word_info.end
 
-                if word_info.word.strip().endswith((".", "!", "?", ",", ";", ":")) or len(current_line["text"].split()) >= 8:
+                line_duration = current_line["end"] - current_line["start"]
+                word_count = len(current_line["text"].split())
+
+                should_break = (
+                    word_info.word.strip().endswith((".", "!", "?", ";"))
+                    or (word_count >= 6)
+                    or (line_duration >= 2.5 and word_count >= 3)
+                )
+
+                if should_break:
                     text_lines.append(current_line)
                     current_line = {"text": "", "start": None, "end": None}
 
@@ -79,12 +105,21 @@ async def auto_extract_lyrics(project_path: str):
         for line in text_lines:
             text = line["text"].strip()
             if text:
+                start = line["start"]
+                end = line["end"]
+                duration = end - start
+
+                if duration < 1.5:
+                    end = start + 1.5
+                elif duration > 4.0:
+                    end = start + 4.0
+
                 alignment.append({
                     "text": text,
                     "section": "Auto-detected",
-                    "timestamp": line["start"],
-                    "start": line["start"],
-                    "end": line["end"],
+                    "timestamp": start,
+                    "start": round(start, 3),
+                    "end": round(end, 3),
                     "importance": engine._estimate_importance(text),
                 })
 
@@ -109,7 +144,6 @@ async def align_lyrics(project_path: str, data: LyricsSubmit):
     project_dir = Path(project_path)
     lyrics_dir = project_dir / "lyrics"
     analysis_dir = project_dir / "analysis"
-    music_dir = project_dir / "music"
 
     lyrics_dir.mkdir(exist_ok=True)
     analysis_dir.mkdir(exist_ok=True)
@@ -123,16 +157,8 @@ async def align_lyrics(project_path: str, data: LyricsSubmit):
         with open(music_analysis_file, "r") as f:
             audio_analysis = json.load(f)
 
-    if data.use_whisper:
-        audio_files = list(music_dir.glob("*.mp3")) + list(music_dir.glob("*.wav"))
-        if audio_files:
-            alignment = engine.align_with_whisper(str(audio_files[0]), data.text)
-        else:
-            parsed = engine.parse_lyrics(data.text)
-            alignment = engine.align_with_audio(parsed, audio_analysis)
-    else:
-        parsed = engine.parse_lyrics(data.text)
-        alignment = engine.align_with_audio(parsed, audio_analysis)
+    parsed = engine.parse_lyrics(data.text)
+    alignment = engine.align_with_audio(parsed, audio_analysis)
 
     engine.save_alignment(alignment, str(analysis_dir / "lyrics_alignment.json"))
 

@@ -70,8 +70,10 @@ export interface TimelineEvent {
   reason: string
   confidence: number
   lyric_text: string
+  section: string
   selection_method: string
   clip_caption: string
+  auto_generated: boolean
 }
 
 export interface ClipOrderItem {
