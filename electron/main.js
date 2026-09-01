@@ -3,7 +3,6 @@ const path = require('path')
 const PythonManager = require('./python-manager')
 const { setupIPC } = require('./ipc-handlers')
 const { createMenu } = require('./menu')
-const { setupAutoUpdater } = require('./updater')
 
 let mainWindow
 let pythonManager
@@ -51,10 +50,6 @@ async function createWindow() {
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(createMenu(shell)))
   setupIPC(mainWindow)
-
-  if (!isDev) {
-    setupAutoUpdater(mainWindow)
-  }
 }
 
 async function startBackend() {
@@ -69,7 +64,7 @@ async function startBackend() {
     await pythonManager.waitForReady()
     console.log('Python backend ready on port', pythonManager.port)
   } catch (err) {
-    console.error('Failed to start Python backend:', err)
+    console.error('Failed to start Python backend:', err.message)
     dialog.showErrorBox(
       'Backend Error',
       'Failed to start the Python backend. Please check your installation.'
@@ -78,8 +73,19 @@ async function startBackend() {
 }
 
 app.whenReady().then(async () => {
-  await startBackend()
   await createWindow()
+  startBackend().catch(err => {
+    console.error('Backend startup failed:', err.message)
+  })
+
+  if (!isDev) {
+    try {
+      const { setupAutoUpdater } = require('./updater')
+      setupAutoUpdater(mainWindow)
+    } catch (err) {
+      console.log('Auto-updater not available:', err.message)
+    }
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

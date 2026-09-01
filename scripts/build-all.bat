@@ -36,7 +36,9 @@ if %errorlevel% neq 0 (
 
 echo.
 echo [4/4] Building Electron App...
-call npx electron-builder --win
+set CSC_IDENTITY_AUTO_DISCOVERY=false
+set CSC_LINK=
+call npx electron-builder --win --x64
 if %errorlevel% neq 0 (
     echo ERROR: Electron build failed!
     pause
@@ -46,6 +48,6 @@ if %errorlevel% neq 0 (
 echo.
 echo ========================================
 echo   BUILD COMPLETE!
-echo   Output: dist-electron\Editor Agent Setup *.exe
+echo   Output: release\win-unpacked\Editor Agent.exe
 echo ========================================
 pause

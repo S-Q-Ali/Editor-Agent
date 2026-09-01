@@ -57,6 +57,15 @@ Convert the web-based Editor-Agent into a standalone Windows desktop application
 - Auto-check 5 seconds after startup in production mode
 - Restart & Install button when update is downloaded
 
+### Build Testing & Fixes (2026-09-01)
+- Fixed PyInstaller spec file path resolution (PROJECT_ROOT from SPEC_DIR)
+- Fixed extraResources mapping (directory to directory, not file)
+- Fixed uvicorn module import in frozen mode (pass app object directly)
+- Fixed spawn with shell: true for Windows exe execution
+- Installed electron-updater as proper dependency
+- Output directory changed to `release/` to avoid file lock conflicts
+- Backend tested and verified working: health check passes on port 8000
+
 ## In Progress
 None
 
@@ -72,11 +81,12 @@ None
 - Bundle size: ~2.5-3GB with all ML dependencies
 - No code signing (SmartScreen can be bypassed)
 - No lite version (full bundle only)
+- Backend spawn: shell: true for Windows compatibility
 
 ## Files Modified/Created (Phase 13)
 - backend/app/api/render.py (route ordering fix)
 - backend/app/api/files.py (/browse endpoint)
-- backend/app/main.py (static serving, CORS, production mode)
+- backend/app/main.py (static serving, CORS, production mode, frozen uvicorn)
 - backend/app/utils/config.py (PyInstaller paths, dynamic fonts)
 - backend/app/rendering/ffmpeg_renderer.py (temp dir fix)
 - backend/app/rendering/caption_templates.py (dynamic font paths)
@@ -87,15 +97,15 @@ None
 - frontend/src/components/FolderPicker.tsx (NEW: folder browser)
 - frontend/src/components/UpdateNotification.tsx (NEW: update toast)
 - frontend/src/pages/ReviewPage.tsx (FolderPicker integration)
-- electron/main.js (NEW: app entry point)
+- electron/main.js (NEW: app entry point, robust error handling)
 - electron/preload.js (NEW: secure bridge)
-- electron/python-manager.js (NEW: backend lifecycle)
+- electron/python-manager.js (NEW: backend lifecycle, shell: true spawn)
 - electron/ipc-handlers.js (NEW: IPC handlers)
 - electron/menu.js (NEW: native menu)
 - electron/updater.js (NEW: auto-updater)
-- package.json (NEW: root config with Electron)
+- package.json (NEW: root config with Electron, electron-updater dep)
 - scripts/build-python.spec (NEW: PyInstaller config)
-- scripts/build-python.bat (NEW: Python build script)
+- scripts/build-python.bat (NEW: Python build script with copy)
 - scripts/build-all.bat (NEW: full build pipeline)
 - scripts/build-dev.bat (NEW: dev mode launcher)
 
@@ -108,12 +118,13 @@ None
 - 54b1b5b: feat: auto-updater + UpdateNotification
 
 ## Next Steps
-1. Run full build pipeline (`scripts/build-all.bat`) to test desktop app
+1. Test full app workflow (create project, add music/video, render, export)
 2. Test on clean Windows machine (no Python installed)
 3. Add custom app icon (currently placeholder)
 4. Test auto-updater with GitHub Releases
 5. Optimize bundle size (exclude unused ML models)
-6. Consider code signing for production distribution
+6. Build NSIS installer (enable code signing or use --dir for testing)
+7. Clean up debug logging for production
 
 ## Last Updated
 2026-09-01

@@ -80,9 +80,17 @@ if frontend_dist.exists():
 
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "app.main:app",
-        host=os.getenv("BACKEND_HOST", "127.0.0.1"),
-        port=int(os.getenv("BACKEND_PORT", "8000")),
-        reload=False if is_frozen else os.getenv("DEBUG", "true").lower() == "true",
-    )
+    if is_frozen:
+        uvicorn.run(
+            app,
+            host=os.getenv("BACKEND_HOST", "127.0.0.1"),
+            port=int(os.getenv("BACKEND_PORT", "8000")),
+            reload=False,
+        )
+    else:
+        uvicorn.run(
+            "app.main:app",
+            host=os.getenv("BACKEND_HOST", "127.0.0.1"),
+            port=int(os.getenv("BACKEND_PORT", "8000")),
+            reload=os.getenv("DEBUG", "true").lower() == "true",
+        )

@@ -1,6 +1,7 @@
 const { spawn } = require('child_process')
 const http = require('http')
 const path = require('path')
+const fs = require('fs')
 
 class PythonManager {
   constructor() {
@@ -14,26 +15,25 @@ class PythonManager {
       this.stop()
     }
 
-    let cmd, args, options
-
     if (executablePath) {
-      cmd = executablePath
-      args = []
-      options = {
+      const backendDir = path.dirname(executablePath)
+      console.log(`[Python] Starting backend: ${executablePath}`)
+
+      this.process = spawn(`"${executablePath}"`, [], {
+        cwd: backendDir,
         env: {
           ...process.env,
           BACKEND_PORT: String(this.port),
           BACKEND_HOST: '127.0.0.1',
           DEBUG: 'false',
         },
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
-      }
+        shell: true,
+      })
     } else {
       const pythonDir = path.join(__dirname, '..', 'backend')
-      cmd = 'python'
-      args = ['-m', 'app.main']
-      options = {
+      this.process = spawn('python', ['-m', 'app.main'], {
         cwd: pythonDir,
         env: {
           ...process.env,
@@ -43,10 +43,9 @@ class PythonManager {
         },
         stdio: ['pipe', 'pipe', 'pipe'],
         windowsHide: true,
-      }
+      })
     }
 
-    this.process = spawn(cmd, args, options)
     this.isRunning = true
 
     this.process.stdout?.on('data', (data) => {
@@ -58,17 +57,17 @@ class PythonManager {
     })
 
     this.process.on('close', (code) => {
-      console.log(`Python process exited with code ${code}`)
+      console.log(`[Python] Process exited with code ${code}`)
       this.isRunning = false
     })
 
     this.process.on('error', (err) => {
-      console.error('Failed to start Python process:', err)
+      console.error('[Python] Spawn error:', err.message)
       this.isRunning = false
     })
   }
 
-  async waitForReady(maxAttempts = 30) {
+  async waitForReady(maxAttempts = 60) {
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const ready = await this.healthCheck()
@@ -78,7 +77,7 @@ class PythonManager {
       }
       await new Promise((r) => setTimeout(r, 1000))
     }
-    throw new Error('Python backend failed to start within 30 seconds')
+    throw new Error('Python backend failed to start within 60 seconds')
   }
 
   healthCheck() {
