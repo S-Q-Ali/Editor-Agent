@@ -10,6 +10,13 @@ import RevisionInput from '../components/RevisionInput'
 import QCDisplay from '../components/QCDisplay'
 import FolderPicker from '../components/FolderPicker'
 
+async function getBase(): Promise<string> {
+  if (window.electronAPI?.getBackendUrl) {
+    return await window.electronAPI.getBackendUrl()
+  }
+  return ''
+}
+
 const CAPTION_TEMPLATE_PREVIEWS: Record<string, { style: string; sample: string }> = {
   subtitle: { style: 'text-sm text-white border-b-2 border-white pb-0.5', sample: 'Aa' },
   karaoke: { style: 'text-lg text-yellow-400 font-bold drop-shadow-lg', sample: 'Aa' },
@@ -78,7 +85,8 @@ function ReviewPage() {
 
   const loadTemplates = async () => {
     try {
-      const response = await fetch('/api/render/captions/templates')
+      const base = await getBase()
+      const response = await fetch(`${base}/api/render/captions/templates`)
       if (response.ok) {
         const data = await response.json()
         setTemplates(data.templates || [])
@@ -91,7 +99,8 @@ function ReviewPage() {
   const loadTimeline = async () => {
     if (!projectPath) return
     try {
-      const response = await fetch(`/api/timeline/${encodeURIComponent(projectPath)}`)
+      const base = await getBase()
+      const response = await fetch(`${base}/api/timeline/${encodeURIComponent(projectPath)}`)
       if (response.ok) {
         const data = await response.json()
         setEvents(data.tracks?.video || [])
@@ -107,14 +116,15 @@ function ReviewPage() {
   const checkForPreview = async () => {
     if (!projectPath) return
     try {
-      const response = await fetch(`/api/render/${encodeURIComponent(projectPath)}/status`)
+      const base = await getBase()
+      const response = await fetch(`${base}/api/render/${encodeURIComponent(projectPath)}/status`)
       if (response.ok) {
         const data = await response.json()
         const preview = data.renders?.find((r: { filename: string }) =>
           r.filename === 'preview.mp4'
         )
         if (preview) {
-          setVideoSrc(`/api/files/${encodeURIComponent(projectPath)}/renders/preview.mp4`)
+          setVideoSrc(`${base}/api/files/${encodeURIComponent(projectPath)}/renders/preview.mp4`)
         }
       }
     } catch (err) {
@@ -125,7 +135,8 @@ function ReviewPage() {
   const checkForFinal = async () => {
     if (!projectPath) return
     try {
-      const response = await fetch(`/api/render/${encodeURIComponent(projectPath)}/status`)
+      const base = await getBase()
+      const response = await fetch(`${base}/api/render/${encodeURIComponent(projectPath)}/status`)
       if (response.ok) {
         const data = await response.json()
         const final = data.renders?.find((r: { filename: string }) =>
@@ -142,7 +153,8 @@ function ReviewPage() {
     if (!projectPath) return
     setQcLoading(true)
     try {
-      const response = await fetch(`/api/qc/${encodeURIComponent(projectPath)}`, { method: 'POST' })
+      const base = await getBase()
+      const response = await fetch(`${base}/api/qc/${encodeURIComponent(projectPath)}`, { method: 'POST' })
       if (response.ok) {
         const data = await response.json()
         setQcResult(data)
@@ -157,7 +169,8 @@ function ReviewPage() {
   const handleRevision = async (instruction: string) => {
     if (!projectPath) return
     try {
-      const response = await fetch(`/api/revision/${encodeURIComponent(projectPath)}`, {
+      const base = await getBase()
+      const response = await fetch(`${base}/api/revision/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ instruction }),
@@ -211,9 +224,10 @@ function ReviewPage() {
     if (!projectPath) return
     setRendering(true)
     try {
+      const base = await getBase()
       const vs = getVideoSettings()
       const as = getAudioSettings()
-      const response = await fetch(`/api/render/${encodeURIComponent(projectPath)}`, {
+      const response = await fetch(`${base}/api/render/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

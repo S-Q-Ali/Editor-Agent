@@ -5,6 +5,13 @@ import { projectApi, timelineApi } from '../services/api'
 import type { Project } from '../types'
 import ClipOrderPanel from '../components/ClipOrderPanel'
 
+async function getBase(): Promise<string> {
+  if (window.electronAPI?.getBackendUrl) {
+    return await window.electronAPI.getBackendUrl()
+  }
+  return ''
+}
+
 const LANGUAGES = [
   { code: 'auto', label: 'Auto-detect' },
   { code: 'en', label: 'English' },
@@ -178,14 +185,15 @@ function ProjectPage() {
   const runPipeline = async () => {
     if (!projectPath) return
     setProcessing(true)
+    const base = await getBase()
 
     try {
       setPipelineStep('Analyzing music...')
-      await fetch(`/api/analysis/music/${encodeURIComponent(projectPath)}`, { method: 'POST' })
+      await fetch(`${base}/api/analysis/music/${encodeURIComponent(projectPath)}`, { method: 'POST' })
 
       setPipelineStep('Extracting lyrics from audio...')
       try {
-        await fetch(`/api/analysis/lyrics/${encodeURIComponent(projectPath)}/auto`, {
+        await fetch(`${base}/api/analysis/lyrics/${encodeURIComponent(projectPath)}/auto`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ language: whisperLanguage === 'auto' ? null : whisperLanguage }),
@@ -195,16 +203,16 @@ function ProjectPage() {
       }
 
       setPipelineStep('Analyzing clips...')
-      await fetch(`/api/analysis/clips/${encodeURIComponent(projectPath)}`, { method: 'POST' })
+      await fetch(`${base}/api/analysis/clips/${encodeURIComponent(projectPath)}`, { method: 'POST' })
 
       setPipelineStep('Building search index...')
-      await fetch(`/api/search/${encodeURIComponent(projectPath)}/index`, { method: 'POST' })
+      await fetch(`${base}/api/search/${encodeURIComponent(projectPath)}/index`, { method: 'POST' })
 
       setPipelineStep('Generating timeline...')
       await timelineApi.generate(projectPath, timelineMode)
 
       setPipelineStep('Rendering preview...')
-      await fetch(`/api/render/${encodeURIComponent(projectPath)}`, {
+      await fetch(`${base}/api/render/${encodeURIComponent(projectPath)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ preview: true }),
