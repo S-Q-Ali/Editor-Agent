@@ -109,6 +109,25 @@ None
 - scripts/build-all.bat (NEW: full build pipeline)
 - scripts/build-dev.bat (NEW: dev mode launcher)
 
+## Pipeline Progress (Phase 13 Add-on)
+- 2026-09-01: Implemented per-step pipeline progress bars with SSE streaming
+
+### Completed
+- In-memory progress store with thread-safe locking (`backend/app/utils/progress.py`)
+- SSE endpoint for real-time progress streaming (`backend/app/api/progress.py`)
+- Progress reporting added to all 6 pipeline endpoints (analysis, lyrics, clips, search, timeline, render)
+- Frontend SSE hook (`frontend/src/hooks/usePipelineProgress.ts`)
+- PipelineProgress UI component with per-step progress bars (`frontend/src/components/PipelineProgress.tsx`)
+- ProjectPage updated to display progress during pipeline execution
+- Fixed missing `_recalculate_overall` function in progress store
+
+### Next Steps
+1. Full end-to-end test with real media files
+2. Test on clean Windows machine (no Python installed)
+3. Add custom app icon (currently placeholder)
+4. Test auto-updater with GitHub Releases
+5. Build NSIS installer (enable code signing or use --dir for testing)
+
 ## Git Commits (Phase 13)
 - f21b1c4: fix: route ordering bug + add /browse endpoint
 - d7cf8cc: feat: frontend adaptations for desktop
@@ -116,15 +135,8 @@ None
 - b43a94c: feat: Electron main process
 - fc9a8f7: feat: Python bundling (PyInstaller)
 - 54b1b5b: feat: auto-updater + UpdateNotification
-
-## Next Steps
-1. Test full app workflow (create project, add music/video, render, export)
-2. Test on clean Windows machine (no Python installed)
-3. Add custom app icon (currently placeholder)
-4. Test auto-updater with GitHub Releases
-5. Optimize bundle size (exclude unused ML models)
-6. Build NSIS installer (enable code signing or use --dir for testing)
-7. Clean up debug logging for production
+- 85632d3, c81dfd1, 080ecdf, 1187a07: build fixes for PyInstaller/Electron
+- e5916f2: feat: pipeline progress bars with SSE streaming
 
 ## Last Updated
 2026-09-01
