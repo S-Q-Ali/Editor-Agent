@@ -36,67 +36,9 @@ class EstimateRequest(BaseModel):
     audio_codec: str = "aac"
 
 
-@router.post("/{project_path:path}")
-async def render_video(project_path: str, data: RenderRequest):
-    project_dir = Path(project_path)
-    timeline_file = project_dir / "timeline" / "timeline.json"
-    music_dir = project_dir / "music"
-    clips_dir = project_dir / "clips"
-    renders_dir = project_dir / "renders"
-
-    if not timeline_file.exists():
-        raise HTTPException(status_code=404, detail="Timeline not found")
-
-    with open(timeline_file, "r") as f:
-        timeline = json.load(f)
-
-    audio_files = list(music_dir.glob("*.mp3")) + list(music_dir.glob("*.wav")) + \
-                  list(music_dir.glob("*.flac")) + list(music_dir.glob("*.ogg")) + \
-                  list(music_dir.glob("*.m4a"))
-
-    if not audio_files:
-        raise HTTPException(status_code=404, detail="Audio file not found")
-
-    renders_dir.mkdir(exist_ok=True)
-
-    if data.export_path:
-        output_file = Path(data.export_path)
-        output_file.parent.mkdir(parents=True, exist_ok=True)
-    elif data.preview:
-        output_file = renders_dir / "preview.mp4"
-    else:
-        output_file = renders_dir / f"final.{data.container}"
-
-    result = renderer.render(
-        timeline=timeline,
-        clips_dir=str(clips_dir),
-        audio_path=str(audio_files[0]),
-        output_path=str(output_file),
-        preview=data.preview,
-        caption_template=data.caption_template,
-        caption_fontsize=data.caption_fontsize,
-        caption_fontcolor=data.caption_fontcolor,
-        resolution=data.resolution,
-        crf=data.crf,
-        preset=data.preset,
-        codec=data.codec,
-        fps=data.fps,
-        audio_codec=data.audio_codec,
-        audio_bitrate=data.audio_bitrate,
-        audio_sample_rate=data.audio_sample_rate,
-        audio_channels=data.audio_channels,
-        container=data.container,
-    )
-
-    if result.get("error"):
-        raise HTTPException(status_code=500, detail=result["error"])
-
-    from app.storage.project_manager import ProjectManager
-    updates = {"preview_ready": True, "status": "preview_ready"} if data.preview \
-        else {"status": "final_rendered"}
-    ProjectManager().update_project(project_path, updates)
-
-    return result
+@router.get("/captions/templates")
+async def list_caption_templates():
+    return {"templates": get_available_templates()}
 
 
 @router.post("/{project_path:path}/estimate")
@@ -170,6 +112,64 @@ async def download_render(project_path: str):
     raise HTTPException(status_code=404, detail="No rendered video found")
 
 
-@router.get("/captions/templates")
-async def list_caption_templates():
-    return {"templates": get_available_templates()}
+@router.post("/{project_path:path}")
+async def render_video(project_path: str, data: RenderRequest):
+    project_dir = Path(project_path)
+    timeline_file = project_dir / "timeline" / "timeline.json"
+    music_dir = project_dir / "music"
+    clips_dir = project_dir / "clips"
+    renders_dir = project_dir / "renders"
+
+    if not timeline_file.exists():
+        raise HTTPException(status_code=404, detail="Timeline not found")
+
+    with open(timeline_file, "r") as f:
+        timeline = json.load(f)
+
+    audio_files = list(music_dir.glob("*.mp3")) + list(music_dir.glob("*.wav")) + \
+                  list(music_dir.glob("*.flac")) + list(music_dir.glob("*.ogg")) + \
+                  list(music_dir.glob("*.m4a"))
+
+    if not audio_files:
+        raise HTTPException(status_code=404, detail="Audio file not found")
+
+    renders_dir.mkdir(exist_ok=True)
+
+    if data.export_path:
+        output_file = Path(data.export_path)
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+    elif data.preview:
+        output_file = renders_dir / "preview.mp4"
+    else:
+        output_file = renders_dir / f"final.{data.container}"
+
+    result = renderer.render(
+        timeline=timeline,
+        clips_dir=str(clips_dir),
+        audio_path=str(audio_files[0]),
+        output_path=str(output_file),
+        preview=data.preview,
+        caption_template=data.caption_template,
+        caption_fontsize=data.caption_fontsize,
+        caption_fontcolor=data.caption_fontcolor,
+        resolution=data.resolution,
+        crf=data.crf,
+        preset=data.preset,
+        codec=data.codec,
+        fps=data.fps,
+        audio_codec=data.audio_codec,
+        audio_bitrate=data.audio_bitrate,
+        audio_sample_rate=data.audio_sample_rate,
+        audio_channels=data.audio_channels,
+        container=data.container,
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    from app.storage.project_manager import ProjectManager
+    updates = {"preview_ready": True, "status": "preview_ready"} if data.preview \
+        else {"status": "final_rendered"}
+    ProjectManager().update_project(project_path, updates)
+
+    return result
