@@ -1,49 +1,61 @@
 # SESSION STATE
 
 ## Current Phase
-Phase 12 — Auto Captions, Export Settings & Production Polish (complete)
+Phase 13 — Desktop Studio Conversion (complete)
 
 ## Current Objective
-Full pipeline with auto-generated captions from audio (Whisper), export options menu with video/audio sections, and lossless compression support.
+Convert the web-based Editor-Agent into a standalone Windows desktop application using Electron + PyInstaller.
 
 ## Overall Progress
-99%
+100%
 
 ## Completed
-- Phases 0-11 complete (see git history: ab669a8..0b664c2)
-- Phase 12: Auto captions + Export menu (2026-09-01, details below)
+- Phases 0-12 complete (see git history: ab669a8..52f2227)
+- Phase 13: Desktop Studio Conversion (2026-09-01, details below)
 
-## Phase 12 Work Completed (2026-09-01)
+## Phase 13 Work Completed (2026-09-01)
 
-### Auto-Generated Captions from Audio
-- Upgraded Whisper model from `base` to `small` for better transcription accuracy
-- Added language parameter to `/auto` endpoint — supports 18 tier-one languages
-- Language selector dropdown in ProjectPage (auto-detect by default)
-- Commented out manual lyrics textarea — system now auto-extracts lyrics from audio only
-- Improved line grouping: max 6 words per line, min 1.5s duration, max 4s duration
-- Whisper config added to settings.yaml and config.py (model_size, device, compute_type)
+### Phase 1: Route Ordering Fix
+- Fixed FastAPI route ordering bug where `POST /{project_path:path}` caught `/estimate` before `/{project_path:path}/estimate`
+- Moved `/estimate` and `/captions/templates` endpoints above catch-all route
+- Added `GET /api/files/browse` endpoint for directory listing (folder picker)
 
-### Bug Fixes
-- Added `section` field to TimelineEvent dataclass — fixes `colorful` template section coloring
-- Fixed `escape_ffmpeg_text()` — now escapes `\`, `:`, `;`, `[`, `]`, `%` for FFmpeg drawtext filter
-- Added `auto_generated` field to TimelineEvent — tracks Whisper-generated lyrics
-- Section propagation: lyrics → phrases → slots → events (both auto and sequential modes)
+### Phase 2: Frontend Adaptations
+- Switched `BrowserRouter` to `HashRouter` (file:// protocol compatible)
+- Added `base: './'` to vite.config.ts for relative asset paths
+- Dynamic API base URL (dev proxy vs production direct)
+- New `fileApi.browse()` for directory listing
+- New `FolderPicker` component with breadcrumb navigation
+- Export path input replaced with Browse button + FolderPicker modal
 
-### Export Settings Menu
-- Full export settings modal with VIDEO and AUDIO sections
-- **Video options:** format (MP4/WebM/MKV), resolution (4K/1080p/720p/480p), codec (H.264/H.265/AV1), FPS (24/25/30/60)
-- **Video quality presets:** Lossless (CRF 0), Visually Lossless (CRF 18), Balanced (CRF 23), Compact (CRF 28)
-- **Audio options:** codec (AAC/MP3/FLAC/Copy), bitrate, sample rate, channels
-- **Audio quality presets:** Lossless (FLAC), High (AAC 320k), Standard (AAC 192k)
-- File size estimate before export (video + audio breakdown)
-- Custom export directory option
-- New `/api/render/{path}/estimate` endpoint for file size estimation
+### Phase 3: Backend Adaptations
+- Fixed `config.py` path resolution for PyInstaller (`sys._MEIPASS`)
+- Fixed temp dir in `ffmpeg_renderer.py` (use system temp directory)
+- Dynamic font paths in `caption_templates.py` (Windows/Mac/Linux)
+- Added static file serving for `frontend/dist/` in `main.py`
+- CORS allows all origins in frozen/production mode
+- Disabled reload in frozen mode
+- `get_project_dir()`/`get_models_dir()` use `~/EditorAgent` in frozen mode
 
-### UI Improvements
-- Font size slider (16-72px) and font color dropdown in caption settings
-- "Whisper" badge on auto-generated lyrics in EventDetail
-- Section display in EventDetail panel
-- ReviewPage redesigned with "Open Export Settings" button → modal with full options
+### Phase 4: Electron Main Process
+- `electron/main.js`: BrowserWindow, Python backend lifecycle, native menu
+- `electron/preload.js`: Secure context bridge (file dialogs, system info)
+- `electron/python-manager.js`: Spawn/monitor/stop Python backend child process
+- `electron/ipc-handlers.js`: Folder/file dialogs, system info, shell.openExternal
+- `electron/menu.js`: Native menu bar (File, Edit, View, Help)
+- Root `package.json`: Electron deps, build scripts, electron-builder config
+
+### Phase 5: Python Bundling
+- `scripts/build-python.spec`: PyInstaller config with all hidden imports
+- `scripts/build-python.bat`: Python backend build script
+- `scripts/build-all.bat`: Full build pipeline (frontend + backend + Electron)
+- `scripts/build-dev.bat`: Development mode launcher
+
+### Phase 8: Auto-Updater
+- `electron/updater.js`: electron-updater integration with IPC events
+- `UpdateNotification` component: Toast notification for update progress
+- Auto-check 5 seconds after startup in production mode
+- Restart & Install button when update is downloaded
 
 ## In Progress
 None
@@ -52,41 +64,56 @@ None
 None
 
 ## Decisions Made
-- Local-first architecture; React frontend; Python/FastAPI backend; FFmpeg deterministic renderer
-- Timeline as structured JSON (schema v2); human approval before final render; model-agnostic AI layer
-- Whisper `small` model chosen for best accuracy/speed balance on CPU
-- Auto-only lyrics system (no manual text input) — Whisper handles all transcription
-- Lossless compression = zero quality loss but still compressed (CRF 0 for video, FLAC for audio)
-- Export settings as modal overlay, not inline — keeps ReviewPage clean
-- File size estimation uses CRF-to-bitrate mapping for quick preview before export
+- Desktop shell: Electron (mature, excellent Python integration)
+- Python bundling: PyInstaller (single executable, no user Python install required)
+- Routing: HashRouter (file:// protocol compatible)
+- Auto-updater: GitHub Releases via electron-updater
+- Target platform: Windows only (NSIS installer)
+- Bundle size: ~2.5-3GB with all ML dependencies
+- No code signing (SmartScreen can be bypassed)
+- No lite version (full bundle only)
 
-## Files Modified (Phase 12)
-- backend/app/api/lyrics.py (Whisper small, language param, improved line grouping)
-- backend/app/lyrics/engine.py (Whisper small, config-based settings)
-- backend/app/agents/editor_brain.py (section + auto_generated fields, propagation)
-- backend/app/rendering/caption_templates.py (escape_ffmpeg_text fix)
-- backend/app/rendering/ffmpeg_renderer.py (full param support, resolution/codec/crf/preset/fps, estimate function)
-- backend/app/api/render.py (expanded RenderRequest, estimate endpoint, custom export path)
-- backend/app/utils/config.py (whisper defaults)
-- config/settings.yaml (whisper config section)
-- frontend/src/pages/ProjectPage.tsx (language dropdown, comment out manual lyrics)
-- frontend/src/pages/ReviewPage.tsx (export settings modal, font controls)
-- frontend/src/components/EventDetail.tsx (Whisper badge, section display)
-- frontend/src/services/api.ts (estimate API call)
-- frontend/src/types/index.ts (ExportSettings, FileEstimate, section, auto_generated)
+## Files Modified/Created (Phase 13)
+- backend/app/api/render.py (route ordering fix)
+- backend/app/api/files.py (/browse endpoint)
+- backend/app/main.py (static serving, CORS, production mode)
+- backend/app/utils/config.py (PyInstaller paths, dynamic fonts)
+- backend/app/rendering/ffmpeg_renderer.py (temp dir fix)
+- backend/app/rendering/caption_templates.py (dynamic font paths)
+- frontend/src/App.tsx (HashRouter, UpdateNotification)
+- frontend/src/vite-env.d.ts (NEW: import.meta.env types)
+- frontend/vite.config.ts (base: './')
+- frontend/src/services/api.ts (dynamic API base URL, fileApi)
+- frontend/src/components/FolderPicker.tsx (NEW: folder browser)
+- frontend/src/components/UpdateNotification.tsx (NEW: update toast)
+- frontend/src/pages/ReviewPage.tsx (FolderPicker integration)
+- electron/main.js (NEW: app entry point)
+- electron/preload.js (NEW: secure bridge)
+- electron/python-manager.js (NEW: backend lifecycle)
+- electron/ipc-handlers.js (NEW: IPC handlers)
+- electron/menu.js (NEW: native menu)
+- electron/updater.js (NEW: auto-updater)
+- package.json (NEW: root config with Electron)
+- scripts/build-python.spec (NEW: PyInstaller config)
+- scripts/build-python.bat (NEW: Python build script)
+- scripts/build-all.bat (NEW: full build pipeline)
+- scripts/build-dev.bat (NEW: dev mode launcher)
 
-## Git Commits
-- ab669a8..480421f: Phases 0-10
-- 0b664c2: Phase 11 — pipeline correctness, lyric-anchored auto mode, QC hardening
-- 755f37e: Phase 12a — auto-only captions with Whisper small + language selector + bug fixes
-- 217943b: Phase 12b — export settings menu with video/audio sections + lossless compression
+## Git Commits (Phase 13)
+- f21b1c4: fix: route ordering bug + add /browse endpoint
+- d7cf8cc: feat: frontend adaptations for desktop
+- c60020e: feat: backend adaptations for desktop
+- b43a94c: feat: Electron main process
+- fc9a8f7: feat: Python bundling (PyInstaller)
+- 54b1b5b: feat: auto-updater + UpdateNotification
 
 ## Next Steps
-1. Test full pipeline with new Whisper small model on a sample project
-2. Verify export settings render correctly with different codec/resolution combos
-3. Implement xfade crossfade/dissolve rendering (transitions currently cut/fade metadata only)
-4. Recalibrate CLIP confidence display in Review UI (scores ~0.2 are normal, not failures)
-5. Desktop packaging (Phase 14)
+1. Run full build pipeline (`scripts/build-all.bat`) to test desktop app
+2. Test on clean Windows machine (no Python installed)
+3. Add custom app icon (currently placeholder)
+4. Test auto-updater with GitHub Releases
+5. Optimize bundle size (exclude unused ML models)
+6. Consider code signing for production distribution
 
 ## Last Updated
 2026-09-01
