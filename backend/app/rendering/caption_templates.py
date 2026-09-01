@@ -1,5 +1,26 @@
 import re
+import platform
 from typing import Dict, List, Optional
+
+
+def _get_font_path(font_name: str = "calibri.ttf") -> str:
+    system = platform.system()
+    if system == "Windows":
+        return f"C\\:/Windows/Fonts/{font_name}"
+    elif system == "Darwin":
+        return f"/System/Library/Fonts/{font_name}"
+    else:
+        return f"/usr/share/fonts/{font_name}"
+
+
+def _get_font_path_plain(font_name: str = "calibri.ttf") -> str:
+    system = platform.system()
+    if system == "Windows":
+        return f"C:/Windows/Fonts/{font_name}"
+    elif system == "Darwin":
+        return f"/System/Library/Fonts/{font_name}"
+    else:
+        return f"/usr/share/fonts/{font_name}"
 
 
 CAPTION_TEMPLATES: Dict[str, Dict] = {
@@ -14,7 +35,7 @@ CAPTION_TEMPLATES: Dict[str, Dict] = {
         "label": "Subtitle",
         "description": "Clean white text at the bottom",
         "enabled": True,
-        "font": "C\\:/Windows/Fonts/calibri.ttf",
+        "font": _get_font_path("calibri.ttf"),
         "fontsize": 28,
         "fontcolor": "white",
         "borderw": 2,
@@ -28,7 +49,7 @@ CAPTION_TEMPLATES: Dict[str, Dict] = {
         "label": "Karaoke",
         "description": "Large yellow text in the center",
         "enabled": True,
-        "font": "C\\:/Windows/Fonts/arialbd.ttf",
+        "font": _get_font_path("arialbd.ttf"),
         "fontsize": 48,
         "fontcolor": "yellow",
         "borderw": 3,
@@ -42,7 +63,7 @@ CAPTION_TEMPLATES: Dict[str, Dict] = {
         "label": "Kids Bubble",
         "description": "White text on a semi-transparent background",
         "enabled": True,
-        "font": "C\\:/Windows/Fonts/calibri.ttf",
+        "font": _get_font_path("calibri.ttf"),
         "fontsize": 32,
         "fontcolor": "white",
         "borderw": 0,
@@ -58,7 +79,7 @@ CAPTION_TEMPLATES: Dict[str, Dict] = {
         "label": "Minimal",
         "description": "Small subtle text in the corner",
         "enabled": True,
-        "font": "C\\:/Windows/Fonts/calibri.ttf",
+        "font": _get_font_path("calibri.ttf"),
         "fontsize": 20,
         "fontcolor": "white@0.8",
         "borderw": 0,
@@ -72,7 +93,7 @@ CAPTION_TEMPLATES: Dict[str, Dict] = {
         "label": "Bold Center",
         "description": "Very large bold text in the center",
         "enabled": True,
-        "font": "C\\:/Windows/Fonts/arialbd.ttf",
+        "font": _get_font_path("arialbd.ttf"),
         "fontsize": 64,
         "fontcolor": "white",
         "borderw": 4,
@@ -86,7 +107,7 @@ CAPTION_TEMPLATES: Dict[str, Dict] = {
         "label": "Colorful",
         "description": "Color changes based on song section",
         "enabled": True,
-        "font": "C\\:/Windows/Fonts/arialbd.ttf",
+        "font": _get_font_path("arialbd.ttf"),
         "fontsize": 36,
         "fontcolor": "white",
         "borderw": 3,
@@ -98,8 +119,8 @@ CAPTION_TEMPLATES: Dict[str, Dict] = {
 }
 
 SECTION_COLORS = {
-    "verse": "white",
     "chorus": "yellow",
+    "verse": "white",
     "bridge": "cyan",
     "intro": "lightgreen",
     "outro": "lightgreen",
@@ -107,11 +128,7 @@ SECTION_COLORS = {
 }
 
 
-def get_template(template_id: str) -> Optional[Dict]:
-    return CAPTION_TEMPLATES.get(template_id)
-
-
-def get_available_templates() -> List[Dict]:
+def get_available_templates() -> List[Dict[str, str]]:
     return [
         {"id": t["id"], "label": t["label"], "description": t["description"]}
         for t in CAPTION_TEMPLATES.values()
@@ -119,13 +136,6 @@ def get_available_templates() -> List[Dict]:
 
 
 def escape_ffmpeg_text(text: str) -> str:
-    """Escape text for use inside a single-quoted drawtext value.
-
-    Within an ffmpeg single-quoted string every character is literal except
-    the apostrophe, which cannot appear at all. Apostrophes in lyrics are
-    replaced with the typographic apostrophe (U+2019), which renders
-    identically and requires no escaping.
-    """
     text = (text or "").replace("\n", " ").replace("\r", " ")
     text = text.replace("'", "\u2019")
     text = text.replace("\\", "\\\\\\\\")
@@ -150,57 +160,43 @@ def build_drawtext_filter(
     template_id: str,
     start_time: float,
     end_time: float,
-    section_label: str = "",
     fontsize_override: Optional[int] = None,
     fontcolor_override: Optional[str] = None,
 ) -> str:
-    template = CAPTION_TEMPLATES.get(template_id)
-    if not template or not template.get("enabled", False):
+    template = CAPTION_TEMPLATES.get(template_id, CAPTION_TEMPLATES["subtitle"])
+    if not template.get("enabled", True):
         return ""
 
-    if not lyric_text or lyric_text.strip() == "":
-        return ""
-
-    escaped_text = escape_ffmpeg_text(lyric_text)
-
-    font = template.get("font", "C\\:/Windows/Fonts/calibri.ttf")
-    fontsize = fontsize_override or template.get("fontsize", 28)
-
-    if fontcolor_override:
-        fontcolor = fontcolor_override
-    elif template_id == "colorful" and section_label:
-        fontcolor = get_section_color(section_label)
-    else:
-        fontcolor = template.get("fontcolor", "white")
-
+    text = escape_ffmpeg_text(lyric_text)
+    font = template["font"]
+    fontsize = fontsize_override or template["fontsize"]
+    fontcolor = fontcolor_override or template["fontcolor"]
     borderw = template.get("borderw", 0)
     bordercolor = template.get("bordercolor", "black")
     x = template.get("x", "(w-text_w)/2")
     y = template.get("y", "h-60")
+    box = template.get("box", False)
 
-    parts = [
-        f"drawtext=fontfile='{font}'",
-        f"text='{escaped_text}'",
-        f"fontsize={fontsize}",
-        f"fontcolor={fontcolor}",
-    ]
+    escaped_text = text.replace("'", "\\'")
 
-    if borderw > 0:
-        parts.append(f"borderw={borderw}")
-        parts.append(f"bordercolor={bordercolor}")
+    opts = (
+        f"fontfile='{font}'"
+        f":fontsize={fontsize}"
+        f":fontcolor={fontcolor}"
+        f":text='{escaped_text}'"
+        f":x={x}"
+        f":y={y}"
+        f":borderw={borderw}"
+        f":bordercolor={bordercolor}"
+        f":enable='between(t,{start_time:.3f},{end_time:.3f})'"
+    )
 
-    if template.get("box", False):
+    if box:
         boxcolor = template.get("boxcolor", "black@0.5")
-        boxborderw = template.get("boxborderw", 5)
-        parts.append(f"box=1")
-        parts.append(f"boxcolor={boxcolor}")
-        parts.append(f"boxborderw={boxborderw}")
+        boxborderw = template.get("boxborderw", 8)
+        opts += f":box=1:boxcolor={boxcolor}:boxborderw={boxborderw}"
 
-    parts.append(f"x={x}")
-    parts.append(f"y={y}")
-    parts.append(f"enable='between(t\\,{start_time:.3f}\\,{end_time:.3f})'")
-
-    return ":".join(parts)
+    return f"drawtext={opts}"
 
 
 def build_caption_filter_chain(
@@ -214,19 +210,24 @@ def build_caption_filter_chain(
 
     filters = []
     for event in events:
-        lyric = event.get("lyric_text", "")
-        if not lyric or lyric.strip() == "":
+        lyric = event.get("lyric_text", "").strip()
+        if not lyric or lyric.startswith("["):
             continue
 
         start = event.get("timeline_start", 0)
         end = event.get("timeline_end", 0)
-        section = event.get("section", "")
+        if end - start < 0.1:
+            continue
 
-        dt = build_drawtext_filter(
-            lyric, template_id, start, end, section,
-            fontsize_override, fontcolor_override,
+        section = event.get("section", "")
+        color = get_section_color(section) if template_id == "colorful" else None
+
+        f = build_drawtext_filter(
+            lyric, template_id, start, end,
+            fontsize_override,
+            color or fontcolor_override,
         )
-        if dt:
-            filters.append(dt)
+        if f:
+            filters.append(f)
 
     return ",".join(filters)

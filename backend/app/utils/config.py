@@ -1,10 +1,17 @@
 import os
+import sys
 import yaml
+import platform
 from pathlib import Path
 from typing import Any, Dict
 
 
-CONFIG_DIR = Path(__file__).parent.parent.parent / "config"
+if getattr(sys, 'frozen', False):
+    BASE_DIR = Path(sys._MEIPASS)
+else:
+    BASE_DIR = Path(__file__).parent.parent.parent
+
+CONFIG_DIR = BASE_DIR / "config"
 CONFIG_FILE = CONFIG_DIR / "settings.yaml"
 
 
@@ -53,7 +60,7 @@ def get_default_config() -> Dict[str, Any]:
         },
         "captions": {
             "default_template": "subtitle",
-            "font_path": "C:/Windows/Fonts/calibri.ttf",
+            "font_path": get_system_font_path("calibri.ttf"),
             "available_templates": [
                 "none", "subtitle", "karaoke", "kids_bubble",
                 "minimal", "bold_center", "colorful",
@@ -62,9 +69,23 @@ def get_default_config() -> Dict[str, Any]:
     }
 
 
+def get_system_font_path(font_name: str = "calibri.ttf") -> str:
+    system = platform.system()
+    if system == "Windows":
+        return f"C:/Windows/Fonts/{font_name}"
+    elif system == "Darwin":
+        return f"/System/Library/Fonts/{font_name}"
+    else:
+        return f"/usr/share/fonts/{font_name}"
+
+
 def get_project_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        return Path.home() / "EditorAgent" / "projects"
     return Path(os.getenv("PROJECTS_DIR", "./projects")).resolve()
 
 
 def get_models_dir() -> Path:
+    if getattr(sys, 'frozen', False):
+        return Path.home() / "EditorAgent" / "models"
     return Path(os.getenv("MODELS_DIR", "./models")).resolve()

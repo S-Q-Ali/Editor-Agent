@@ -1,6 +1,7 @@
 import json
 import subprocess
 import os
+import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -39,7 +40,7 @@ class FFmpegRenderer:
     def __init__(self):
         self.ffmpeg_path = "ffmpeg"
         self.ffprobe_path = "ffprobe"
-        self.temp_dir = Path("temp")
+        self.temp_dir = Path(tempfile.gettempdir()) / "editor_agent_temp"
         self.temp_dir.mkdir(exist_ok=True)
 
     def render(

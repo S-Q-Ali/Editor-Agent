@@ -1,9 +1,13 @@
+import sys
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
-import os
 
-from app.utils.config import load_config
+from app.utils.config import load_config, BASE_DIR
 from app.api.projects import router as projects_router
 from app.api.health import router as health_router
 from app.api.upload import router as upload_router
@@ -26,13 +30,24 @@ app = FastAPI(
     version="0.1.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+is_frozen = getattr(sys, 'frozen', False)
+
+if is_frozen:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://localhost:3000", "file://"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 app.include_router(projects_router)
 app.include_router(health_router)
@@ -59,10 +74,15 @@ async def get_config():
     return config
 
 
+frontend_dist = BASE_DIR / "frontend" / "dist"
+if frontend_dist.exists():
+    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="static")
+
+
 if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host=os.getenv("BACKEND_HOST", "127.0.0.1"),
         port=int(os.getenv("BACKEND_PORT", "8000")),
-        reload=os.getenv("DEBUG", "true").lower() == "true",
+        reload=False if is_frozen else os.getenv("DEBUG", "true").lower() == "true",
     )
