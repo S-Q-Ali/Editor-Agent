@@ -8,6 +8,7 @@ import VideoPlayer from '../components/VideoPlayer'
 import EventDetail from '../components/EventDetail'
 import RevisionInput from '../components/RevisionInput'
 import QCDisplay from '../components/QCDisplay'
+import FolderPicker from '../components/FolderPicker'
 
 const CAPTION_TEMPLATE_PREVIEWS: Record<string, { style: string; sample: string }> = {
   subtitle: { style: 'text-sm text-white border-b-2 border-white pb-0.5', sample: 'Aa' },
@@ -60,6 +61,7 @@ function ReviewPage() {
   const [exportContainer, setExportContainer] = useState('mp4')
   const [audioQuality, setAudioQuality] = useState('standard')
   const [exportPath, setExportPath] = useState('')
+  const [showFolderPicker, setShowFolderPicker] = useState(false)
   const [estimate, setEstimate] = useState<FileEstimate | null>(null)
   const [estimating, setEstimating] = useState(false)
 
@@ -411,14 +413,30 @@ function ReviewPage() {
 
               {/* Export Path */}
               <div className="mb-6">
-                <label className="text-sm text-slate-400 mb-1 block">Export To (optional)</label>
-                <input
-                  type="text"
-                  value={exportPath}
-                  onChange={(e) => setExportPath(e.target.value)}
-                  placeholder="Default: project/renders/final.{container}"
-                  className="w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500"
-                />
+                <label className="text-sm text-slate-400 mb-1 block">Export To</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={exportPath}
+                    readOnly
+                    placeholder="Default: project/renders/final.{container}"
+                    className="flex-1 rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm text-slate-100 placeholder-slate-500"
+                  />
+                  <button
+                    onClick={() => setShowFolderPicker(true)}
+                    className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600 transition-colors"
+                  >
+                    Browse
+                  </button>
+                  {exportPath && (
+                    <button
+                      onClick={() => setExportPath('')}
+                      className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm hover:bg-slate-600 transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
+                </div>
               </div>
 
               {/* VIDEO Section */}
@@ -564,6 +582,16 @@ function ReviewPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showFolderPicker && (
+        <FolderPicker
+          onSelect={(path) => {
+            setExportPath(path)
+            setShowFolderPicker(false)
+          }}
+          onClose={() => setShowFolderPicker(false)}
+        />
       )}
     </div>
   )

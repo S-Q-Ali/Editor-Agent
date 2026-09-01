@@ -1,9 +1,19 @@
 import axios from 'axios'
 import type { Project, ClipOrder, FileEstimate } from '../types'
 
+const API_BASE = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${API_BASE}/api`,
 })
+
+export const fileApi = {
+  browse: (path: string) =>
+    axios.get<{ current: string; parent: string | null; directories: { name: string; path: string }[] }>(
+      `${API_BASE}/api/files/browse`,
+      { params: { path } }
+    ),
+}
 
 export const projectApi = {
   list: () => api.get<Project[]>('/projects/'),
@@ -28,7 +38,7 @@ export const timelineApi = {
 }
 
 export const renderApi = {
-  downloadUrl: (path: string) => `/api/render/${encodeURIComponent(path)}/download`,
+  downloadUrl: (path: string) => `${API_BASE}/api/render/${encodeURIComponent(path)}/download`,
   getCaptionTemplates: () => api.get('/render/captions/templates'),
   estimate: (path: string, params: { crf: number; resolution: string; audio_bitrate: string; audio_codec: string }) =>
     api.post<FileEstimate>(`/render/${path}/estimate`, params),
