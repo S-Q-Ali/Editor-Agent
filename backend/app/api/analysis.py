@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pathlib import Path
 from app.audio.analyzer import MusicAnalyzer
+from app.utils.progress import update_progress, complete_step, fail_step
 
 router = APIRouter(prefix="/api/analysis/music", tags=["analysis"])
 analyzer = MusicAnalyzer()
@@ -24,8 +25,10 @@ async def analyze_music(project_path: str):
     audio_path = str(audio_files[0])
 
     try:
+        update_progress(project_path, "analyzing_music", 10, "Loading audio file...")
         result = analyzer.analyze(audio_path)
 
+        update_progress(project_path, "analyzing_music", 80, "Saving results...")
         analysis_dir = project_dir / "analysis"
         analysis_dir.mkdir(exist_ok=True)
 
@@ -36,8 +39,10 @@ async def analyze_music(project_path: str):
         from app.storage.project_manager import ProjectManager
         ProjectManager().update_project(project_path, {"music_file": audio_files[0].name})
 
+        complete_step(project_path, "analyzing_music")
         return result
     except Exception as e:
+        fail_step(project_path, "analyzing_music", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 

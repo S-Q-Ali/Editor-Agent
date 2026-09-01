@@ -5,6 +5,7 @@ import json
 from typing import Optional
 from app.lyrics.engine import LyricsEngine
 from app.utils.config import load_config
+from app.utils.progress import update_progress, complete_step, skip_step, fail_step
 
 router = APIRouter(prefix="/api/analysis/lyrics", tags=["analysis"])
 engine = LyricsEngine()
@@ -45,6 +46,7 @@ async def auto_extract_lyrics(project_path: str, data: AutoLyricsRequest = AutoL
     try:
         from faster_whisper import WhisperModel
 
+        update_progress(project_path, "extracting_lyrics", 10, "Loading Whisper model...")
         config = load_config()
         whisper_config = config.get("whisper", {})
         model_size = whisper_config.get("model_size", "small")
@@ -57,6 +59,7 @@ async def auto_extract_lyrics(project_path: str, data: AutoLyricsRequest = AutoL
         if data.language and data.language != "auto":
             transcribe_kwargs["language"] = data.language
 
+        update_progress(project_path, "extracting_lyrics", 30, "Transcribing audio...")
         segments, info = model.transcribe(audio_path, **transcribe_kwargs)
 
         words_list = []
@@ -97,6 +100,8 @@ async def auto_extract_lyrics(project_path: str, data: AutoLyricsRequest = AutoL
         if current_line["text"].strip():
             text_lines.append(current_line)
 
+        update_progress(project_path, "extracting_lyrics", 70, "Aligning lyrics...")
+
         lyrics_text = "\n".join(line["text"].strip() for line in text_lines)
         with open(lyrics_dir / "lyrics.txt", "w") as f:
             f.write(lyrics_text)
@@ -125,6 +130,7 @@ async def auto_extract_lyrics(project_path: str, data: AutoLyricsRequest = AutoL
 
         engine.save_alignment(alignment, str(analysis_dir / "lyrics_alignment.json"))
 
+        complete_step(project_path, "extracting_lyrics")
         return {
             "source": "whisper_auto",
             "total_lines": len(alignment),
@@ -134,8 +140,10 @@ async def auto_extract_lyrics(project_path: str, data: AutoLyricsRequest = AutoL
         }
 
     except ImportError:
+        skip_step(project_path, "extracting_lyrics", "faster-whisper not installed")
         raise HTTPException(status_code=500, detail="faster-whisper not installed. Cannot auto-transcribe.")
     except Exception as e:
+        fail_step(project_path, "extracting_lyrics", str(e))
         raise HTTPException(status_code=500, detail=f"Whisper transcription failed: {str(e)}")
 
 

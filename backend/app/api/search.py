@@ -4,6 +4,7 @@ from pathlib import Path
 import json
 from typing import List
 from app.embeddings.semantic_search import SemanticSearch
+from app.utils.progress import update_progress, complete_step, fail_step
 
 router = APIRouter(prefix="/api/search", tags=["search"])
 search_engine = SemanticSearch()
@@ -31,10 +32,14 @@ async def build_index(project_path: str):
         raise HTTPException(status_code=400, detail="No clips found to index")
 
     enhanced_clips = search_engine.generate_clip_embeddings(clips)
+    update_progress(project_path, "building_index", 30, "Generating segment embeddings...")
     enhanced_clips = search_engine.generate_segment_embeddings(enhanced_clips)
+    update_progress(project_path, "building_index", 60, "Generating visual embeddings...")
     enhanced_clips = search_engine.generate_clip_visual_embeddings(enhanced_clips, "")
+    update_progress(project_path, "building_index", 90, "Saving embeddings...")
     search_engine.save_embeddings(enhanced_clips, str(analysis_dir / "clip_embeddings.json"))
 
+    complete_step(project_path, "building_index")
     return {
         "indexed_clips": len(enhanced_clips),
         "message": "Embeddings generated and saved",

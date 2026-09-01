@@ -4,6 +4,8 @@ import { useAppStore } from '../stores/appStore'
 import { projectApi, timelineApi } from '../services/api'
 import type { Project } from '../types'
 import ClipOrderPanel from '../components/ClipOrderPanel'
+import PipelineProgress from '../components/PipelineProgress'
+import { usePipelineProgress } from '../hooks/usePipelineProgress'
 
 async function getBase(): Promise<string> {
   if (window.electronAPI?.getBackendUrl) {
@@ -55,10 +57,11 @@ function ProjectPage() {
   const [timelineMode, setTimelineMode] = useState<string>(currentProject?.timeline_mode || 'auto')
   const [, setClipOrderSaved] = useState(false)
 
+  const projectPath = currentProjectPath || ''
+  const { progress, reset: resetProgress } = usePipelineProgress(projectPath || null)
+
   const musicInputRef = useRef<HTMLInputElement>(null)
   const clipsInputRef = useRef<HTMLInputElement>(null)
-
-  const projectPath = currentProjectPath
 
   useEffect(() => {
     if (projectPath && !project) {
@@ -185,9 +188,12 @@ function ProjectPage() {
   const runPipeline = async () => {
     if (!projectPath) return
     setProcessing(true)
+    resetProgress()
     const base = await getBase()
 
     try {
+      await fetch(`${base}/api/progress/${encodeURIComponent(projectPath)}/init`, { method: 'POST' })
+
       setPipelineStep('Analyzing music...')
       await fetch(`${base}/api/analysis/music/${encodeURIComponent(projectPath)}`, { method: 'POST' })
 
@@ -464,7 +470,9 @@ function ProjectPage() {
           ))}
         </div>
 
-        {pipelineStep && (
+        {processing && <PipelineProgress progress={progress} />}
+
+        {!processing && pipelineStep && (
           <div className="mb-4 text-sm text-slate-300">
             Current: {pipelineStep}
           </div>

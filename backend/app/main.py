@@ -21,6 +21,7 @@ from app.api.render import router as render_router
 from app.api.qc import router as qc_router
 from app.api.revision import router as revision_router
 from app.api.files import router as files_router
+from app.api.progress import router as progress_router
 
 config = load_config()
 
@@ -62,6 +63,7 @@ app.include_router(render_router)
 app.include_router(qc_router)
 app.include_router(revision_router)
 app.include_router(files_router)
+app.include_router(progress_router)
 
 
 @app.get("/")

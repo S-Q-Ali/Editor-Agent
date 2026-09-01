@@ -6,6 +6,7 @@ from pathlib import Path
 import json
 from app.rendering.ffmpeg_renderer import FFmpegRenderer
 from app.rendering.caption_templates import get_available_templates
+from app.utils.progress import update_progress, complete_step, fail_step
 
 router = APIRouter(prefix="/api/render", tags=["rendering"])
 renderer = FFmpegRenderer()
@@ -135,6 +136,8 @@ async def render_video(project_path: str, data: RenderRequest):
 
     renders_dir.mkdir(exist_ok=True)
 
+    update_progress(project_path, "rendering_preview", 10, "Preparing render...")
+
     if data.export_path:
         output_file = Path(data.export_path)
         output_file.parent.mkdir(parents=True, exist_ok=True)
@@ -143,6 +146,7 @@ async def render_video(project_path: str, data: RenderRequest):
     else:
         output_file = renders_dir / f"final.{data.container}"
 
+    update_progress(project_path, "rendering_preview", 30, "Rendering video with FFmpeg...")
     result = renderer.render(
         timeline=timeline,
         clips_dir=str(clips_dir),
@@ -165,11 +169,14 @@ async def render_video(project_path: str, data: RenderRequest):
     )
 
     if result.get("error"):
+        fail_step(project_path, "rendering_preview", result["error"])
         raise HTTPException(status_code=500, detail=result["error"])
 
+    update_progress(project_path, "rendering_preview", 95, "Finalizing...")
     from app.storage.project_manager import ProjectManager
     updates = {"preview_ready": True, "status": "preview_ready"} if data.preview \
         else {"status": "final_rendered"}
     ProjectManager().update_project(project_path, updates)
 
+    complete_step(project_path, "rendering_preview")
     return result

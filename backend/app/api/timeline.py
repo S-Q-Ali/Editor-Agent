@@ -4,6 +4,7 @@ from typing import List, Optional
 from pathlib import Path
 import json
 from app.agents.editor_brain import EditingBrain
+from app.utils.progress import update_progress, complete_step, fail_step
 
 router = APIRouter(prefix="/api/timeline", tags=["timeline"])
 brain = EditingBrain()
@@ -48,6 +49,7 @@ async def generate_timeline(project_path: str, data: TimelineGenerateRequest = T
 
     clips = clips_data.get("clips", [])
 
+    update_progress(project_path, "generating_timeline", 20, "Matching lyrics to clips...")
     lyrics_matches = {}
     segment_matches = {}
     clip_level_matches = {}
@@ -85,12 +87,14 @@ async def generate_timeline(project_path: str, data: TimelineGenerateRequest = T
         else:
             data.mode = "auto"
 
+    update_progress(project_path, "generating_timeline", 50, "Generating timeline...")
     timeline = brain.generate_timeline(
         music_analysis, lyrics_alignment, clips, lyrics_matches,
         segment_matches, clip_level_matches,
         mode=data.mode, clip_order=clip_order,
     )
 
+    update_progress(project_path, "generating_timeline", 80, "Validating timeline...")
     validation = brain.validate_timeline(timeline)
     timeline["validation"] = validation
 
@@ -105,6 +109,7 @@ async def generate_timeline(project_path: str, data: TimelineGenerateRequest = T
         "status": "timeline_ready",
     })
 
+    complete_step(project_path, "generating_timeline")
     return timeline
 
 

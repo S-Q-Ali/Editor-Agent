@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import json
 from app.video.clip_analyzer import ClipAnalyzer
+from app.utils.progress import update_progress, complete_step, fail_step
 
 router = APIRouter(prefix="/api/analysis/clips", tags=["analysis"])
 analyzer = ClipAnalyzer()
@@ -43,6 +44,7 @@ async def analyze_clips(project_path: str, data: ClipAnalysisRequest = ClipAnaly
         ordered_filenames = [c["filename"] for c in order_data.get("clips", [])]
 
     try:
+        update_progress(project_path, "analyzing_clips", 10, "Loading video clips...")
         clips = analyzer.analyze_all_clips(
             str(clips_dir),
             caption_segments=data.caption_segments,
@@ -50,16 +52,19 @@ async def analyze_clips(project_path: str, data: ClipAnalysisRequest = ClipAnaly
             clip_embeddings=data.clip_embeddings,
             ordered_filenames=ordered_filenames,
         )
+        update_progress(project_path, "analyzing_clips", 90, "Saving clip index...")
         analyzer.save_clip_index(clips, str(analysis_dir / "clip_index.json"))
 
         from app.storage.project_manager import ProjectManager
         ProjectManager().update_project(project_path, {"analysis_complete": True})
 
+        complete_step(project_path, "analyzing_clips")
         return {
             "total_clips": len(clips),
             "clips": clips,
         }
     except Exception as e:
+        fail_step(project_path, "analyzing_clips", str(e))
         raise HTTPException(status_code=500, detail=str(e))
 
 
