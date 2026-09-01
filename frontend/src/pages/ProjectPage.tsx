@@ -120,7 +120,8 @@ function ProjectPage() {
       setMusicProgress(0)
       setUploadError('Music upload failed — check connection')
     }
-    xhr.open('POST', `/api/upload/music/${encodeURIComponent(projectPath)}`)
+    const uploadBase = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
+    xhr.open('POST', `${uploadBase}/api/upload/music/${encodeURIComponent(projectPath)}`)
     xhr.send(formData)
 
     if (musicInputRef.current) musicInputRef.current.value = ''
@@ -161,7 +162,8 @@ function ProjectPage() {
       setClipsProgress(0)
       setUploadError('Clips upload failed — check connection')
     }
-    xhr.open('POST', `/api/upload/clips/${encodeURIComponent(projectPath)}`)
+    const uploadBase = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
+    xhr.open('POST', `${uploadBase}/api/upload/clips/${encodeURIComponent(projectPath)}`)
     xhr.send(formData)
 
     if (clipsInputRef.current) clipsInputRef.current.value = ''
