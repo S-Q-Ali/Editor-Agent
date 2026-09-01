@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { Project, ClipOrder } from '../types'
+import type { Project, ClipOrder, FileEstimate } from '../types'
 
 const api = axios.create({
   baseURL: '/api',
@@ -30,6 +30,8 @@ export const timelineApi = {
 export const renderApi = {
   downloadUrl: (path: string) => `/api/render/${encodeURIComponent(path)}/download`,
   getCaptionTemplates: () => api.get('/render/captions/templates'),
+  estimate: (path: string, params: { crf: number; resolution: string; audio_bitrate: string; audio_codec: string }) =>
+    api.post<FileEstimate>(`/render/${path}/estimate`, params),
 }
 
 export const healthApi = {

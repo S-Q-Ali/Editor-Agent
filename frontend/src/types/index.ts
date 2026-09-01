@@ -106,3 +106,26 @@ export interface QCResult {
   warnings: string[]
   errors: string[]
 }
+
+export interface ExportSettings {
+  resolution: string
+  crf: number
+  preset: string
+  codec: string
+  fps: number
+  container: string
+  audio_codec: string
+  audio_bitrate: string
+  audio_sample_rate: number
+  audio_channels: number
+  export_path: string
+}
+
+export interface FileEstimate {
+  duration: number
+  video_mb: number
+  audio_mb: number
+  total_mb: number
+  video_kbps: number
+  audio_kbps: number
+}
