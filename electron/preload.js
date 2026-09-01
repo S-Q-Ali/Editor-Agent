@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron')
 
 contextBridge.exposeInMainWorld('electronAPI', {
+  getBackendUrl: () => ipcRenderer.invoke('backend:url'),
   openFolderDialog: () => ipcRenderer.invoke('dialog:openFolder'),
   openFileDialog: (filters) => ipcRenderer.invoke('dialog:openFile', filters),
   saveFileDialog: (defaultName, filters) =>

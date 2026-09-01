@@ -1,6 +1,10 @@
 const { ipcMain, dialog, shell } = require('electron')
 
-function setupIPC(mainWindow) {
+function setupIPC(mainWindow, backendPort) {
+  ipcMain.handle('backend:url', () => {
+    return `http://127.0.0.1:${backendPort || 8000}`
+  })
+
   ipcMain.handle('dialog:openFolder', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],

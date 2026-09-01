@@ -49,7 +49,7 @@ async function createWindow() {
   })
 
   Menu.setApplicationMenu(Menu.buildFromTemplate(createMenu(shell)))
-  setupIPC(mainWindow)
+  setupIPC(mainWindow, 8000)
 }
 
 async function startBackend() {

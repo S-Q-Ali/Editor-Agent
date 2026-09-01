@@ -26,6 +26,11 @@ yarn-error.log*
 frontend/dist/
 frontend/build/
 
+# Electron build output
+release/
+dist-electron/
+test-run.bat
+
 # Environment variables
 .env
 .env.local

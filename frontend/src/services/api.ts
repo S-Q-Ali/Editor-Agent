@@ -1,18 +1,43 @@
 import axios from 'axios'
 import type { Project, ClipOrder, FileEstimate } from '../types'
 
-const API_BASE = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
+const isElectron = typeof window !== 'undefined' && !!window.electronAPI?.getBackendUrl
+
+async function getApiBase(): Promise<string> {
+  if (isElectron && window.electronAPI) {
+    return await window.electronAPI.getBackendUrl()
+  }
+  return import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
+}
+
+let cachedBase: string | null = null
+
+async function apiBase(): Promise<string> {
+  if (cachedBase) return cachedBase
+  cachedBase = await getApiBase()
+  return cachedBase
+}
 
 const api = axios.create({
-  baseURL: `${API_BASE}/api`,
+  baseURL: '/api',
+})
+
+api.interceptors.request.use(async (config) => {
+  const base = await apiBase()
+  if (base) {
+    config.baseURL = `${base}/api`
+  }
+  return config
 })
 
 export const fileApi = {
-  browse: (path: string) =>
-    axios.get<{ current: string; parent: string | null; directories: { name: string; path: string }[] }>(
-      `${API_BASE}/api/files/browse`,
+  browse: async (path: string) => {
+    const base = await apiBase()
+    return axios.get<{ current: string; parent: string | null; directories: { name: string; path: string }[] }>(
+      `${base}/api/files/browse`,
       { params: { path } }
-    ),
+    )
+  },
 }
 
 export const projectApi = {
@@ -38,7 +63,10 @@ export const timelineApi = {
 }
 
 export const renderApi = {
-  downloadUrl: (path: string) => `${API_BASE}/api/render/${encodeURIComponent(path)}/download`,
+  downloadUrl: (path: string) => {
+    const base = cachedBase || (import.meta.env.DEV ? '' : 'http://127.0.0.1:8000')
+    return `${base}/api/render/${encodeURIComponent(path)}/download`
+  },
   getCaptionTemplates: () => api.get('/render/captions/templates'),
   estimate: (path: string, params: { crf: number; resolution: string; audio_bitrate: string; audio_codec: string }) =>
     api.post<FileEstimate>(`/render/${path}/estimate`, params),

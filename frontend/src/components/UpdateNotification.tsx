@@ -1,16 +1,5 @@
 import { useState, useEffect } from 'react'
 
-declare global {
-  interface Window {
-    electronAPI?: {
-      onUpdateAvailable: (callback: (version: string) => void) => void
-      onUpdateProgress: (callback: (percent: number) => void) => void
-      onUpdateDownloaded: (callback: () => void) => void
-      installUpdate: () => void
-    }
-  }
-}
-
 function UpdateNotification() {
   const [updateState, setUpdateState] = useState<
     'checking' | 'available' | 'downloading' | 'downloaded' | null

@@ -88,13 +88,17 @@ function ProjectPage() {
     }
   }
 
-  const handleMusicUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !projectPath) return
 
     setMusicUploading(true)
     setMusicProgress(0)
     setUploadError(null)
+
+    const base = window.electronAPI?.getBackendUrl
+      ? await window.electronAPI.getBackendUrl()
+      : import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
 
     const formData = new FormData()
     formData.append('file', file)
@@ -120,14 +124,13 @@ function ProjectPage() {
       setMusicProgress(0)
       setUploadError('Music upload failed — check connection')
     }
-    const uploadBase = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
-    xhr.open('POST', `${uploadBase}/api/upload/music/${encodeURIComponent(projectPath)}`)
+    xhr.open('POST', `${base}/api/upload/music/${encodeURIComponent(projectPath)}`)
     xhr.send(formData)
 
     if (musicInputRef.current) musicInputRef.current.value = ''
   }
 
-  const handleClipsUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleClipsUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (!files || files.length === 0 || !projectPath) return
 
@@ -135,6 +138,10 @@ function ProjectPage() {
     setClipsUploading(true)
     setClipsProgress(0)
     setUploadError(null)
+
+    const base = window.electronAPI?.getBackendUrl
+      ? await window.electronAPI.getBackendUrl()
+      : import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
 
     const formData = new FormData()
     for (let i = 0; i < files.length; i++) {
@@ -162,8 +169,7 @@ function ProjectPage() {
       setClipsProgress(0)
       setUploadError('Clips upload failed — check connection')
     }
-    const uploadBase = import.meta.env.DEV ? '' : 'http://127.0.0.1:8000'
-    xhr.open('POST', `${uploadBase}/api/upload/clips/${encodeURIComponent(projectPath)}`)
+    xhr.open('POST', `${base}/api/upload/clips/${encodeURIComponent(projectPath)}`)
     xhr.send(formData)
 
     if (clipsInputRef.current) clipsInputRef.current.value = ''
